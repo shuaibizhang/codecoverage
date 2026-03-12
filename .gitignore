@@ -1,0 +1,39 @@
+# Binaries and executables
+server
+*.exe
+*.test
+*.prof
+
+# Go specific
+*.out
+vendor/
+coverage.out
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# Configuration files
+conf/dev.toml
+*.env
+*.env.local
+
+# Data and reports
+data/
+coverage/reports/
+coverage/upload/
+
+# Logs
+logs/
+*.log
+
+# IDE and System files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.swp
+*.swo
+
