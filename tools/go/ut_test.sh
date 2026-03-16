@@ -272,9 +272,27 @@ generate_git_diff() {
         return 1
     fi
 
+    # 检查 BASE_COMMIT 是否在本地存在，如果不存在则尝试 fetch
+    if ! git rev-parse --verify "$BASE_COMMIT" >/dev/null 2>&1; then
+        log "INFO" "本地未发现基准提交对象，正在尝试从远程获取 $BASE_COMMIT..."
+        # 尝试直接 fetch 这个 commit
+        git fetch origin "$BASE_COMMIT" --depth=1 >/dev/null 2>&1 || true
+    fi
+
+    # 再次验证对象是否存在
+    if ! git cat-file -e "$BASE_COMMIT^{commit}" >/dev/null 2>&1; then
+        log "ERROR" "Git 无法识别基准提交对象: $BASE_COMMIT"
+        log "WARN" "这通常是由于浅克隆 (Shallow Clone) 且该提交较旧导致。请尝试在 actions/checkout 中设置 fetch-depth: 0"
+        return 1
+    fi
+
     log "INFO" "正在基于 $BASE_COMMIT 生成 diff_changes.patch..."
-    git diff "$BASE_COMMIT" "$COMMIT" > diff_changes.patch
-    log "SUCCESS" "Git 差异已保存至 diff_changes.patch"
+    if git diff "$BASE_COMMIT" "$COMMIT" > diff_changes.patch; then
+        log "SUCCESS" "Git 差异已保存至 diff_changes.patch"
+    else
+        log "ERROR" "git diff 执行失败"
+        return 1
+    fi
 }
 
 # --- 主函数 ---
