@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -29,12 +31,64 @@ type minioOSS struct {
 	client *minio.Client
 }
 
-// NewMinioOSS 创建 MinIO 存储实例
+// pathPrefixTransport 是一个自定义的 http.RoundTripper，用于在每个请求路径前添加前缀。
+// 解决问题：
+// 1. 标准的 MinIO Go SDK (minio-go) 不支持在 Endpoint 中包含路径前缀（例如 http://ip/oss/）。
+// 2. 如果服务器（如 Nginx 代理）要求请求必须带有特定的路径前缀才能正确路由，直接传给 SDK 会报错。
+// 3. 直接在签名计算前修改路径会破坏 S3 的签名机制。
+// 本 Transport 在签名计算完成后，在网络层发送请求前动态添加前缀，既满足了服务器路由要求，又保证了签名的有效性。
+type pathPrefixTransport struct {
+	base   http.RoundTripper
+	prefix string
+}
+
+func (t *pathPrefixTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// 如果前缀不为空，将其添加到请求路径中
+	if t.prefix != "" && !strings.HasPrefix(req.URL.Path, t.prefix) {
+		req.URL.Path = t.prefix + req.URL.Path
+		if req.URL.RawPath != "" {
+			req.URL.RawPath = t.prefix + req.URL.RawPath
+		}
+	}
+	return t.base.RoundTrip(req)
+}
+
+// NewMinioOSS creates a new Minio OSS client
 func NewMinioOSS(cfg Config) (OSS, error) {
-	client, err := minio.New(cfg.Endpoint, &minio.Options{
+	endpoint := cfg.Endpoint
+	var pathPrefix string
+
+	// 处理包含协议头的 endpoint
+	if strings.HasPrefix(endpoint, "http://") {
+		endpoint = strings.TrimPrefix(endpoint, "http://")
+	} else if strings.HasPrefix(endpoint, "https://") {
+		endpoint = strings.TrimPrefix(endpoint, "https://")
+	}
+
+	// 提取路径前缀 (如 /oss/)。
+	// 标准 minio-go 只能处理 host:port，如果配置了路径（如 49.233.216.158/oss/），
+	// 我们需要将 /oss 提取出来并放入自定义 Transport 中处理。
+	if idx := strings.Index(endpoint, "/"); idx != -1 {
+		pathPrefix = endpoint[idx:]
+		endpoint = endpoint[:idx]
+	}
+	// 去掉末尾斜杠以保持一致性
+	pathPrefix = strings.TrimSuffix(pathPrefix, "/")
+
+	opts := &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
 		Secure: cfg.UseSSL,
-	})
+	}
+
+	// 如果存在路径前缀，使用自定义 Transport
+	if pathPrefix != "" {
+		opts.Transport = &pathPrefixTransport{
+			base:   http.DefaultTransport,
+			prefix: pathPrefix,
+		}
+	}
+
+	client, err := minio.New(endpoint, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize minio client: %w", err)
 	}
