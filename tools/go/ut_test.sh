@@ -123,11 +123,46 @@ set_module_info() {
             log "INFO" "检测到 Push/其他 事件"
             BRANCH="$GITHUB_REF_NAME"
             
-            # Fetch 目标基准分支以计算 merge-base
-            log "INFO" "正在获取 origin/$target_base_branch..."
-            git fetch origin "$target_base_branch" --depth=1 || true
+            # 尝试自动探测默认分支
+            local base_branch=$target_base_branch
             
-            BASE_COMMIT=$(git merge-base "origin/$target_base_branch" "$COMMIT" 2>/dev/null || echo "")
+            # 如果是默认传参 main，且在 GitHub Actions 中，尝试从事件 payload 获取真正的默认分支
+            if [ "$base_branch" = "main" ] && [ -f "$GITHUB_EVENT_PATH" ]; then
+                log "INFO" "正在尝试从 GitHub Event Payload 探测默认分支..."
+                local payload_default
+                if command -v jq >/dev/null 2>&1; then
+                    payload_default=$(jq -r .repository.default_branch "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+                fi
+                
+                if [ -n "$payload_default" ] && [ "$payload_default" != "null" ]; then
+                    base_branch="$payload_default"
+                    log "INFO" "自动探测到默认分支: $base_branch"
+                fi
+            fi
+
+            log "INFO" "正在尝试获取基准分支 origin/$base_branch..."
+            if ! git fetch origin "$base_branch" --depth=1 2>/dev/null; then
+                if [ "$base_branch" = "main" ]; then
+                    log "WARN" "未找到 main 分支，尝试获取 master..."
+                    base_branch="master"
+                    if ! git fetch origin "$base_branch" --depth=1 2>/dev/null; then
+                        log "ERROR" "无法获取 main 或 master 分支，无法计算基准提交。"
+                    fi
+                elif [ "$base_branch" = "master" ]; then
+                    log "WARN" "未找到 master 分支，尝试获取 main..."
+                    base_branch="main"
+                    if ! git fetch origin "$base_branch" --depth=1 2>/dev/null; then
+                        log "ERROR" "无法获取 master 或 main 分支，无法计算基准提交。"
+                    fi
+                else
+                    log "ERROR" "无法获取指定的基准分支 origin/$base_branch"
+                fi
+            fi
+            
+            # 只有在 fetch 成功的情况下才尝试计算 merge-base
+            if git show-ref --verify --quiet "refs/remotes/origin/$base_branch"; then
+                BASE_COMMIT=$(git merge-base "origin/$base_branch" "$COMMIT" 2>/dev/null || echo "")
+            fi
         fi
     else
         log "INFO" "正在本地环境中运行"
@@ -136,7 +171,16 @@ set_module_info() {
         COMMIT=$(git rev-parse HEAD)
         
         # 本地计算 merge-base
-        BASE_COMMIT=$(git merge-base "$target_base_branch" "$COMMIT" 2>/dev/null || echo "")
+        local base_branch=$target_base_branch
+        if ! git rev-parse --verify "$base_branch" >/dev/null 2>&1; then
+            if [ "$base_branch" = "main" ] && git rev-parse --verify "master" >/dev/null 2>&1; then
+                base_branch="master"
+            fi
+        fi
+        
+        if git rev-parse --verify "$base_branch" >/dev/null 2>&1; then
+            BASE_COMMIT=$(git merge-base "$base_branch" "$COMMIT" 2>/dev/null || echo "")
+        fi
     fi
 
     # 设置一个uuid作为执行ID
@@ -182,16 +226,28 @@ run_ut_test_with_coverage() {
             # 3. 执行测试并生成覆盖率
             # 使用数组扩展 "${BUILD_FLAG[@]}" "${TEST_FLAG[@]}" 以正确处理带空格的参数
             # 并将 PACKAGE_LIST 放在最后作为测试目标
-            if go test "${BUILD_FLAG[@]}" "${TEST_FLAG[@]}" -coverprofile=coverage.out ${PACKAGE_LIST} > /dev/null 2>&1; then
+            local test_output
+            set +e
+            test_output=$(go test "${BUILD_FLAG[@]}" "${TEST_FLAG[@]}" -coverprofile=coverage.out ${PACKAGE_LIST} 2>&1)
+            local test_exit_code=$?
+            set -e
+
+            if [ $test_exit_code -eq 0 ]; then
                 if [ -f coverage.out ] && [ -s coverage.out ]; then
                     local total_cov
                     total_cov=$(go tool cover -func=coverage.out | tail -n 1 | awk '{print $NF}')
                     log "SUCCESS" "$mod_dir 模块覆盖率: $total_cov"
                 else
-                    log "WARN" "$mod_dir 模块未生成覆盖率报告（可能没有发现具体的测试用例）。"
+                    log "WARN" "$mod_dir 模块未发现测试用例，跳过覆盖率计算。"
                 fi
             else
-                log "ERROR" "$mod_dir 模块测试失败或未发现测试文件。"
+                # 检查是否是因为没有测试文件
+                if echo "$test_output" | grep -q "no test files"; then
+                    log "WARN" "$mod_dir 模块中未发现测试文件。"
+                else
+                    log "ERROR" "$mod_dir 模块单元测试失败。"
+                    # log "ERROR" "测试输出详情:\n$test_output"
+                fi
             fi
         )
     done
