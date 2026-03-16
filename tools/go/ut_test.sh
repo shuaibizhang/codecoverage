@@ -114,11 +114,21 @@ set_module_info() {
             BRANCH="$GITHUB_HEAD_REF"
             local base_ref="$GITHUB_BASE_REF"
             
-            # Fetch 基础分支以计算 merge-base
-            log "INFO" "正在获取 origin/$base_ref..."
-            git fetch origin "$base_ref" --depth=1 || true
-            
-            BASE_COMMIT=$(git merge-base "origin/$base_ref" "$COMMIT" 2>/dev/null || echo "")
+            # 1. 优先尝试从 GitHub Event Payload 获取基准提交 (base sha)
+            # 这样即使是浅克隆 (shallow clone) 也能准确找到 PR 的起始点
+            if [ -f "$GITHUB_EVENT_PATH" ] && command -v jq >/dev/null 2>&1; then
+                BASE_COMMIT=$(jq -r .pull_request.base.sha "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+                if [ -n "$BASE_COMMIT" ] && [ "$BASE_COMMIT" != "null" ]; then
+                    log "INFO" "从 Event Payload 获取到基准提交: $BASE_COMMIT"
+                fi
+            fi
+
+            # 2. 如果 Payload 获取失败，再尝试 git fetch 和 merge-base
+            if [ -z "$BASE_COMMIT" ]; then
+                log "INFO" "正在获取 origin/$base_ref..."
+                git fetch origin "$base_ref" --depth=1 || true
+                BASE_COMMIT=$(git merge-base "origin/$base_ref" "$COMMIT" 2>/dev/null || echo "")
+            fi
         else
             log "INFO" "检测到 Push/其他 事件"
             BRANCH="$GITHUB_REF_NAME"
