@@ -134,7 +134,7 @@ func (r *CoverReportImpl) AddFile(path string, lines []int32, diffInfo FileDiffI
 
 	// 2. 存入数据源获取 PartitionKey
 	if r.Storage != nil {
-		pk := partitionkey.NewCoverageKey(r.PartitionKey.RealPath()+".cda", 0)
+		pk := partitionkey.NewCoverageKey(r.PartitionKey.RealPathPrefix(), 0)
 		newPk, err := r.Storage.SetCoverLine(context.Background(), pk, lines, diffInfo.AddedLines)
 		if err != nil {
 			return fmt.Errorf("storage set cover line: %w", err)
@@ -226,7 +226,7 @@ func (r *CoverReportImpl) UpdateFile(path string, lines []int32, diffInfo FileDi
 
 	// 2. 存入存储
 	if r.Storage != nil {
-		pk := partitionkey.NewCoverageKey(r.PartitionKey.RealPath()+".cda", fileNode.BlockOffset)
+		pk := partitionkey.NewCoverageKey(r.PartitionKey.RealPathPrefix(), fileNode.BlockOffset)
 		newPk, err := r.Storage.SetCoverLine(context.Background(), pk, lines, diffInfo.AddedLines)
 		if err != nil {
 			return fmt.Errorf("storage set cover line: %w", err)
@@ -282,7 +282,7 @@ func (r *CoverReportImpl) GetFileCoverLines(filePath string) ([]uint32, error) {
 	}
 
 	// 延迟加载：从存储读取带标识的覆盖行
-	pk := partitionkey.NewCoverageKey(r.PartitionKey.RealPath()+".cda", fileNode.BlockOffset)
+	pk := partitionkey.NewCoverageKey(r.PartitionKey.RealPathPrefix(), fileNode.BlockOffset)
 	return r.Storage.GetCoverLineWithFlag(context.Background(), pk)
 }
 

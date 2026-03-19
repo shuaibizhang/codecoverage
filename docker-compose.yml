@@ -27,3 +27,19 @@ services:
       /usr/bin/mc anonymous set public local/coverage-reports;
       exit 0;
       "
+
+  mysql:
+    image: mysql:8.0
+    container_name: codecoverage-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: coverage_db
+      MYSQL_USER: coverage_user
+      MYSQL_PASSWORD: coverage_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      # 将 SQL 脚本挂载到初始化目录，容器启动时会自动执行
+      - ./script/sql/unittest.sql:/docker-entrypoint-initdb.d/unittest.sql
+    restart: always

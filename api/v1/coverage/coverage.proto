@@ -28,6 +28,30 @@ service CoverageService {
       get: "/api/v1/coverage/file"
     };
   }
+
+  // 上报单测任务元数据
+  rpc UploadUnittestReport(UploadUnittestReportRequest) returns (UploadUnittestReportResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/unittest/upload"
+      body: "*"
+    };
+  }
+}
+
+message UploadUnittestReportRequest {
+  string language = 1;
+  string module = 2;
+  string branch = 3;
+  string commit = 4;
+  string base_commit = 5;
+  string run_id = 6;
+  string normal_cover_data_partition_key = 7;
+  string report_partition_key = 8;
+}
+
+message UploadUnittestReportResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message GetReportInfoRequest {

@@ -36,8 +36,8 @@ func TestPartitionKeyIntegration(t *testing.T) {
 		t.Fatalf("failed to unmarshal key: %v", err)
 	}
 
-	// 2. 获取 RealPath 并定位到 testdata
-	relPath := pk.RealPath()
+	// 2. 获取 RealPathPrefix 并定位到 testdata
+	relPath := pk.RealPathPrefix() + ".cno"
 	fullCnoPath := filepath.Join("testdata", relPath)
 
 	t.Logf("Checking CNO path: %s", fullCnoPath)
@@ -80,11 +80,13 @@ func TestPartitionKeyIntegration(t *testing.T) {
 	}
 
 	// 5. 根据 CNO 路径和节点的 BlockOffset 创建 CoverageKey
+	// 注意：NewCoverageKey 现在接收 prefix
+	prefix := fullCnoPath[:len(fullCnoPath)-len(".cno")]
 	offset := int64(percentNode.BlockOffset)
-	covKey := partitionkey.NewCoverageKey(fullCnoPath, offset)
+	covKey := partitionkey.NewCoverageKey(prefix, offset)
 
-	cdaPath := covKey.RealPath()
-	t.Logf("CDA RealPath from CoverageKey: %s", cdaPath)
+	cdaPath := covKey.RealPathPrefix() + ".cda"
+	t.Logf("CDA RealPathPrefix from CoverageKey: %s", cdaPath)
 
 	// 6. 读取 CDA 并解码行覆盖率
 	cdaData, err := os.ReadFile(cdaPath)

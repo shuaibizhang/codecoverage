@@ -58,7 +58,7 @@ type mockPartitionKey struct {
 func (m *mockPartitionKey) Type() partitionkey.PartitionType { return partitionkey.ReportType }
 func (m *mockPartitionKey) Marshal() (string, error)         { return "", nil }
 func (m *mockPartitionKey) Unmarshal(data string) error      { return nil }
-func (m *mockPartitionKey) RealPath() string                 { return "test_report.cno" }
+func (m *mockPartitionKey) RealPathPrefix() string           { return "test_report" }
 func (m *mockPartitionKey) Offset() int64                    { return m.offset }
 func (m *mockPartitionKey) SetOffset(o int64)                { m.offset = o }
 

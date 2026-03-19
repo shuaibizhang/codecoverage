@@ -10,13 +10,14 @@ type CoverData struct {
 
 // MetaInfo 覆盖率元数据部分
 type MetaInfo struct {
-	HostName   string `json:"hostname"`    // 上报主机名
-	Module     string `json:"module"`      // 模块名
-	Branch     string `json:"branch"`      // 分支名
-	Commit     string `json:"commit"`      // 提交哈希
-	BaseCommit string `json:"base_commit"` // 基础提交哈希
-	Language   string `json:"language"`    // 编程语言
-	FilePrefix string `json:"file_prefix"` // 文件前缀
+	HostName      string `json:"hostname"`        // 上报主机名
+	Module        string `json:"module"`          // 模块名
+	Branch        string `json:"branch"`          // 分支名
+	Commit        string `json:"commit"`          // 提交哈希
+	BaseCommit    string `json:"base_commit"`     // 基础提交哈希
+	UnittestRunID string `json:"unittest_run_id"` // 单元测试执行id
+	Language      string `json:"language"`        // 编程语言
+	FilePrefix    string `json:"file_prefix"`     // 文件前缀
 }
 
 // CovNormalInfo 归一化覆盖率信息，屏蔽语言差异

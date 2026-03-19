@@ -295,6 +295,47 @@ generate_git_diff() {
     fi
 }
 
+# --- 安装与上报 ---
+install_cover_cli() {
+    log "HEADER" "安装 cover-cli"
+    log "INFO" "正在从 ./cmd/cover-cli 安装 cover-cli..."
+    
+    # 确保在项目根目录下执行安装
+    if go install ./cmd/cover-cli; then
+        log "SUCCESS" "cover-cli 安装成功"
+    else
+        log "ERROR" "cover-cli 安装失败"
+        return 1
+    fi
+}
+
+upload_to_cover_server() {
+    log "HEADER" "上报覆盖率数据"
+    
+    local cover_server=${COVER_SERVER:-"http://localhost:8080"}
+    log "INFO" "覆盖率服务地址: $cover_server"
+    
+    # 确保 cover-cli 在 PATH 中
+    # go install 默认安装到 $GOPATH/bin
+    local cli_path=$(go env GOPATH)/bin/cover-cli
+    if [ ! -f "$cli_path" ]; then
+        log "ERROR" "找不到 cover-cli 可执行文件: $cli_path"
+        return 1
+    fi
+
+    log "INFO" "正在执行上报命令..."
+    if "$cli_path" upload \
+        --language go \
+        --coverpath . \
+        --diffPath diff_changes.patch \
+        --cover-server "$cover_server"; then
+        log "SUCCESS" "数据上报成功"
+    else
+        log "ERROR" "数据上报失败"
+        return 1
+    fi
+}
+
 # --- 主函数 ---
 main() {
     local target_base_branch=${1:-main}
@@ -307,8 +348,22 @@ main() {
     
     if generate_git_diff; then
         log "EMPTY"
-        log "HEADER" "执行完成"
-        log "SUCCESS" "脚本执行成功！"
+        
+        # 新增安装和上报步骤
+        if install_cover_cli; then
+            log "EMPTY"
+            if upload_to_cover_server; then
+                log "EMPTY"
+                log "HEADER" "执行完成"
+                log "SUCCESS" "脚本执行成功，数据已上报！"
+            else
+                log "ERROR" "数据上报过程出错。"
+                exit 1
+            fi
+        else
+            log "ERROR" "工具安装失败，跳过上报。"
+            exit 1
+        fi
     else
         log "EMPTY"
         log "HEADER" "错误"

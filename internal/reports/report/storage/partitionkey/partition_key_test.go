@@ -12,7 +12,7 @@ func TestReportKeyPathGeneration(t *testing.T) {
 
 	t.Run("UnitTest Path", func(t *testing.T) {
 		pk := NewReportKey(UnitTest, module, branch, commit)
-		path := pk.RealPath()
+		path := pk.RealPathPrefix()
 
 		// 校验前缀：unit/{date}/my-module/
 		if !strings.HasPrefix(path, "unit/") {
@@ -25,8 +25,8 @@ func TestReportKeyPathGeneration(t *testing.T) {
 		if !strings.Contains(path, branch+"_12345678") {
 			t.Errorf("path should contain branch and short commit: %s", path)
 		}
-		if !strings.HasSuffix(path, ".cno") {
-			t.Errorf("path should end with .cno: %s", path)
+		if strings.HasSuffix(path, ".cno") {
+			t.Errorf("path should not end with .cno: %s", path)
 		}
 	})
 
@@ -34,7 +34,7 @@ func TestReportKeyPathGeneration(t *testing.T) {
 		planID := uint64(1001)
 		execID := uint64(2002)
 		pk := NewAutoReportKey(module, branch, commit, planID, execID)
-		path := pk.RealPath()
+		path := pk.RealPathPrefix()
 
 		// 校验前缀：auto/{date}/my-module/
 		if !strings.HasPrefix(path, "auto/") {
@@ -43,16 +43,19 @@ func TestReportKeyPathGeneration(t *testing.T) {
 		if !strings.Contains(path, "/"+module+"/") {
 			t.Errorf("path should contain module: %s", path)
 		}
-		// 校验文件名：1001_2002.cno
-		expectedSuffix := "1001_2002.cno"
+		// 校验文件名：1001_2002
+		expectedSuffix := "1001_2002"
 		if !strings.HasSuffix(path, expectedSuffix) {
 			t.Errorf("expected filename suffix %s, got %s", expectedSuffix, path)
+		}
+		if strings.HasSuffix(path, ".cno") {
+			t.Errorf("path should not end with .cno: %s", path)
 		}
 	})
 }
 
 func TestNewCoverageKey(t *testing.T) {
-	cnoPath := "unit/2023-10-27/mod/br/mod_br_commit_123.cno"
+	cnoPath := "unit/2023-10-27/mod/br/mod_br_commit_123"
 	offset := int64(1024)
 
 	pk := NewCoverageKey(cnoPath, offset)
@@ -61,9 +64,9 @@ func TestNewCoverageKey(t *testing.T) {
 		t.Errorf("expected type %s, got %s", CoverageDataType, pk.Type())
 	}
 
-	expectedPath := "unit/2023-10-27/mod/br/mod_br_commit_123.cda"
-	if pk.RealPath() != expectedPath {
-		t.Errorf("expected cda path %s, got %s", expectedPath, pk.RealPath())
+	expectedPath := "unit/2023-10-27/mod/br/mod_br_commit_123"
+	if pk.RealPathPrefix() != expectedPath {
+		t.Errorf("expected cda path %s, got %s", expectedPath, pk.RealPathPrefix())
 	}
 
 	if pk.Offset() != offset {

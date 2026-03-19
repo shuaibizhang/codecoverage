@@ -1,5 +1,7 @@
 package parser
 
+import "errors"
+
 type LanguageType string
 
 const (
@@ -15,4 +17,13 @@ type Parser interface {
 	Parse(string) (*CovNormalInfo, error)
 	ParseMultiFiles(map[string]string) (*CovNormalInfo, error)
 	ScanCoverageFiles(rootDir string) (map[string]string, error)
+}
+
+func ParserFactory(langType LanguageType) (Parser, error) {
+	switch langType {
+	case GoLanguage:
+		return NewGoCovParser(""), nil
+	default:
+		return nil, errors.New("unsupported language type")
+	}
 }

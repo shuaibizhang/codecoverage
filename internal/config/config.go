@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/shuaibizhang/codecoverage/internal/oss"
+	"github.com/shuaibizhang/codecoverage/store/db"
 	"github.com/spf13/viper"
 )
 
@@ -15,6 +16,7 @@ var (
 type Config struct {
 	OssConfig    oss.Config   `mapstructure:"oss"`
 	GithubConfig GithubConfig `mapstructure:"github"`
+	DbConfig     db.Config    `mapstructure:"database"`
 }
 
 type GithubConfig struct {
