@@ -72,7 +72,7 @@ func (k *reportKey) RealPathPrefix() string {
 	dateStr := time.Unix(k.Timestamp, 0).Format(time.DateOnly)
 	safeModule := strings.ReplaceAll(k.Module, "/", "_")
 	safeBranch := strings.ReplaceAll(k.Branch, "/", "_")
-	prefix := filepath.Join(string(k.TType), dateStr, safeModule)
+	prefix := filepath.Join(string(k.TType), dateStr, string(ReportType), safeModule)
 
 	var filename string
 	if k.TType == AutoTest {

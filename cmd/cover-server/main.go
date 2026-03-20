@@ -99,10 +99,16 @@ func main() {
 
 	// 1.5 初始化 Service
 	covSvc := service.NewCoverageService(mgr, codeProv)
-	unittestSvc := utservice.NewUnitTestService(unittestStore, ossCli, mgr, cfg.OssConfig.BucketName)
+	var unittestSvc utservice.UnitTestService
+	if unittestStore != nil {
+		unittestSvc = utservice.NewUnitTestService(unittestStore, ossCli, mgr, cfg.OssConfig.BucketName)
+	}
 
 	covCtrl := controller.NewCoverageController(covSvc)
-	utCtrl := controller.NewUnitTestController(unittestSvc)
+	var utCtrl *controller.UnitTestController
+	if unittestSvc != nil {
+		utCtrl = controller.NewUnitTestController(unittestSvc)
+	}
 	ctrl := controller.NewController(covCtrl, utCtrl)
 
 	// 2. 启动服务器

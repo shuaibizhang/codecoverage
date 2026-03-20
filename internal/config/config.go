@@ -16,7 +16,7 @@ var (
 type Config struct {
 	OssConfig    oss.Config   `mapstructure:"oss"`
 	GithubConfig GithubConfig `mapstructure:"github"`
-	DbConfig     db.Config    `mapstructure:"database"`
+	DbConfig     db.Config    `mapstructure:"mysql"`
 }
 
 type GithubConfig struct {

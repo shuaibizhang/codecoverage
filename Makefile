@@ -41,4 +41,4 @@ gen_output:
 	mkdir -p output/{bin,conf}
 
 remote_port_forward:
-	ssh -fCNR 0.0.0.0:18080:localhost:8080 bingoserver
+	make run-backend && ssh -fCNR 0.0.0.0:18080:localhost:8080 bingoserver

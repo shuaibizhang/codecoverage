@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 
@@ -36,6 +37,9 @@ func NewUnitTestService(s store.UnitTestStore, ossCli oss.OSS, reportManager man
 }
 
 func (s *unitTestService) UploadUnittestReport(ctx context.Context, task *store.UnittestTask) (uint64, error) {
+	if s.unittestStore == nil {
+		return 0, fmt.Errorf("unittest store is not initialized")
+	}
 	// 保存到数据库中
 	err := s.unittestStore.Save(ctx, task)
 	if err != nil {
