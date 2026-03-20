@@ -175,6 +175,7 @@ func (s *coverageService) GetFileCoverage(ctx context.Context, req *coverage.Get
 
 	content, err := s.codeProvider.GetFileContent(ctx, meta.Module, meta.Commit, req.Path)
 	if err != nil {
+		log.Printf("Error getting source code: %v (module=%s, commit=%s, path=%s)", err, meta.Module, meta.Commit, req.Path)
 		content = fmt.Sprintf("Error reading source: %v", err)
 	}
 
