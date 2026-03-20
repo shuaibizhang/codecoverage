@@ -24,18 +24,22 @@ func NewGithubCodeProvider(token, owner string) CodeProvider {
 
 func (p *githubCodeProvider) GetFileContent(ctx context.Context, repo, commit, path string) (string, error) {
 	// 1. 尝试从仓库路径中解析 owner 和 repo 名称
-	// repo 可能的形式: "github.com/shuaibizhang/codecoverage" 或 "codecoverage"
+	// repo 可能的形式: "github.com/shuaibizhang/codecoverage" 或 "shuaibizhang/transparent-context"
 	repoName := repo
 	ownerName := p.owner
 
 	if strings.Contains(repo, "/") {
 		parts := strings.Split(repo, "/")
-		// 如果是完整的 github.com/owner/repo 路径
+		// 情况1: github.com/owner/repo
 		if len(parts) >= 3 && parts[0] == "github.com" {
 			ownerName = parts[1]
 			repoName = parts[2]
+		} else if len(parts) == 2 {
+			// 情况2: owner/repo
+			ownerName = parts[0]
+			repoName = parts[1]
 		} else {
-			// 否则取最后一段作为 repo 名
+			// 其他情况: 取最后一段作为 repo 名
 			repoName = parts[len(parts)-1]
 		}
 	}

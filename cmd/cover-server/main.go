@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -10,8 +11,10 @@ import (
 	"github.com/shuaibizhang/codecoverage/internal/config"
 	"github.com/shuaibizhang/codecoverage/internal/oss"
 	"github.com/shuaibizhang/codecoverage/internal/reports/manager"
+	"github.com/shuaibizhang/codecoverage/internal/reports/report"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/storage"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/storage/datasource"
+	"github.com/shuaibizhang/codecoverage/internal/reports/report/storage/partitionkey"
 	"github.com/shuaibizhang/codecoverage/internal/server"
 	"github.com/shuaibizhang/codecoverage/internal/server/controller"
 	"github.com/shuaibizhang/codecoverage/internal/service"
@@ -24,6 +27,12 @@ import (
 var confPath = flag.String("conf", "conf/dev.toml", "")
 
 func main() {
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.Printf("--------------------------------------------------")
+	log.Printf("Cover Server is starting...")
+	log.Printf("PID: %d", os.Getpid())
+	log.Printf("--------------------------------------------------")
 	flag.Parse()
 	if confPath == nil || *confPath == "" {
 		panic("conf path err")
@@ -36,38 +45,40 @@ func main() {
 	cfg := config.GetConfig()
 
 	// 1. 初始化存储
-	// 1.1 初始化文件存储
-	os.MkdirAll("coverage/reports", 0755)
-
-	// 如果文件不存在则创建
-	metaPath := "coverage/reports/meta.cno"
-	coverPath := "coverage/reports/cover.cda"
-
-	if _, err := os.Stat(metaPath); os.IsNotExist(err) {
-		f, _ := os.Create(metaPath)
-		f.Close()
-	}
-	if _, err := os.Stat(coverPath); os.IsNotExist(err) {
-		f, _ := os.Create(coverPath)
-		f.Close()
-	}
-
-	metaFile, err := datasource.OpenFileDataSource(metaPath)
+	// 1.1 初始化 OSS 客户端
+	ossCli, err := oss.NewMinioOSS(cfg.OssConfig)
 	if err != nil {
-		log.Fatalf("failed to open meta datasource: %v", err)
+		log.Fatalf("failed to init oss client: %v", err)
 	}
-	coverFile, err := datasource.OpenFileDataSource(coverPath)
-	if err != nil {
-		log.Fatalf("failed to open cover datasource: %v", err)
+
+	// 1.1.1 确保存储桶存在
+	if err := ossCli.MakeBucket(context.Background(), cfg.OssConfig.BucketName); err != nil {
+		log.Printf("Warning: failed to make bucket %s: %v", cfg.OssConfig.BucketName, err)
 	}
 
 	// 简单的内存锁
 	lock := &simpleLock{}
 
-	storageStore := storage.NewStorage(metaFile, coverFile, lock)
-	mgr := manager.NewReportManager(storageStore)
+	// 1.2 初始化 ReportManager (使用动态存储工厂)
+	mgr := manager.NewReportManager(func(ctx context.Context, pk partitionkey.PartitionKey) (report.Storage, error) {
+		prefix := pk.RealPathPrefix()
+		metaPath := prefix + ".cno"
+		coverPath := prefix + ".cda"
 
-	// 1.2 初始化数据库存储
+		metaFile, err := datasource.NewOSSDataSource(ctx, ossCli, cfg.OssConfig.BucketName, metaPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open meta datasource from oss: %w", err)
+		}
+		coverFile, err := datasource.NewOSSDataSource(ctx, ossCli, cfg.OssConfig.BucketName, coverPath)
+		if err != nil {
+			metaFile.Close()
+			return nil, fmt.Errorf("failed to open cover datasource from oss: %w", err)
+		}
+
+		return storage.NewStorage(metaFile, coverFile, lock), nil
+	})
+
+	// 1.3 初始化数据库存储
 	var dbStore *store.Store
 	var unittestStore utstore.UnitTestStore
 	if cfg.DbConfig.Host != "" {
@@ -81,12 +92,6 @@ func main() {
 		}
 	}
 
-	// 1.3 初始化 OSS 客户端
-	ossCli, err := oss.NewMinioOSS(cfg.OssConfig)
-	if err != nil {
-		log.Fatalf("failed to init oss client: %v", err)
-	}
-
 	// 1.4 初始化 CodeProvider
 	var codeProv cp.CodeProvider
 	if cfg.GithubConfig.Token != "" {
@@ -98,7 +103,7 @@ func main() {
 	}
 
 	// 1.5 初始化 Service
-	covSvc := service.NewCoverageService(mgr, codeProv)
+	covSvc := service.NewCoverageService(mgr, codeProv, unittestStore)
 	var unittestSvc utservice.UnitTestService
 	if unittestStore != nil {
 		unittestSvc = utservice.NewUnitTestService(unittestStore, ossCli, mgr, cfg.OssConfig.BucketName)

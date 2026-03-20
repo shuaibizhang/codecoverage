@@ -62,6 +62,9 @@ type Storage interface {
 	SetReport(ctx context.Context, pk partitionkey.PartitionKey, report CoverReport) (partitionkey.PartitionKey, error)
 	// 从存储获取报告并填充到传入的对象中
 	LoadReport(ctx context.Context, pk partitionkey.PartitionKey, report CoverReport) error
+
+	// Close 关闭存储，释放资源
+	Close() error
 }
 
 type MetaInfo struct {
@@ -337,6 +340,9 @@ func (r *CoverReportImpl) Flush(ctx context.Context) error {
 }
 
 func (r *CoverReportImpl) Close(ctx context.Context) error {
+	if r.Storage != nil {
+		return r.Storage.Close()
+	}
 	return nil
 }
 

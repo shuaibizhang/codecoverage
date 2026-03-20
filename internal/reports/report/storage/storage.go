@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/shuaibizhang/codecoverage/internal/reports/report"
@@ -66,6 +67,12 @@ func (s *storage) SetCoverLine(ctx context.Context, pk partitionkey.PartitionKey
 	if _, err := s.coverLineSource.WriteAt(coverLineData, offset); err != nil {
 		return nil, err
 	}
+
+	// 4、同步数据源（如果是 OSS 数据源，则触发上传）
+	// 注意：这里为了性能，不在每次设置覆盖行时都同步到 OSS，而是在 SetReport 或 Close 时统一同步
+	// if err := s.coverLineSource.Sync(); err != nil {
+	// 	return nil, err
+	// }
 
 	// 设置偏移量到 PartitionKey
 	pk.SetOffset(offset)
@@ -136,11 +143,25 @@ func (s *storage) SetReport(ctx context.Context, pk partitionkey.PartitionKey, r
 
 	// 2、编码报告
 	// 注意：这里编码器会将数据写入 metaSource
+	if err := s.metaSource.Truncate(0); err != nil {
+		return nil, err
+	}
+	if _, err := s.metaSource.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
 	if err := s.reportEncoder.Encode(report); err != nil {
 		return nil, err
 	}
 
-	// 3、返回报告句柄
+	// 3、同步数据源（如果是 OSS 数据源，则触发上传）
+	if err := s.metaSource.Sync(); err != nil {
+		return nil, err
+	}
+	if err := s.coverLineSource.Sync(); err != nil {
+		return nil, err
+	}
+
+	// 4、返回报告句柄
 	return pk, nil
 }
 
@@ -151,4 +172,22 @@ func (s *storage) LoadReport(ctx context.Context, pk partitionkey.PartitionKey, 
 
 func (s *storage) GetMetaSource() datasource.DataSource {
 	return s.metaSource
+}
+
+func (s *storage) Close() error {
+	var errs []error
+	if s.metaSource != nil {
+		if err := s.metaSource.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if s.coverLineSource != nil {
+		if err := s.coverLineSource.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to close storage: %v", errs)
+	}
+	return nil
 }

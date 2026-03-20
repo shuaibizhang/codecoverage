@@ -22,6 +22,7 @@ const (
 	CoverageService_GetReportInfo_FullMethodName        = "/api.v1.coverage.CoverageService/GetReportInfo"
 	CoverageService_GetTreeNodes_FullMethodName         = "/api.v1.coverage.CoverageService/GetTreeNodes"
 	CoverageService_GetFileCoverage_FullMethodName      = "/api.v1.coverage.CoverageService/GetFileCoverage"
+	CoverageService_GetMetadataList_FullMethodName      = "/api.v1.coverage.CoverageService/GetMetadataList"
 	CoverageService_UploadUnittestReport_FullMethodName = "/api.v1.coverage.CoverageService/UploadUnittestReport"
 )
 
@@ -37,6 +38,8 @@ type CoverageServiceClient interface {
 	GetTreeNodes(ctx context.Context, in *GetTreeNodesRequest, opts ...grpc.CallOption) (*GetTreeNodesResponse, error)
 	// 获取文件覆盖率详情及源码内容
 	GetFileCoverage(ctx context.Context, in *GetFileCoverageRequest, opts ...grpc.CallOption) (*GetFileCoverageResponse, error)
+	// 获取指定测试类型的元数据列表 (Module, Branch, Commit)
+	GetMetadataList(ctx context.Context, in *GetMetadataListRequest, opts ...grpc.CallOption) (*GetMetadataListResponse, error)
 	// 上报单测任务元数据
 	UploadUnittestReport(ctx context.Context, in *UploadUnittestReportRequest, opts ...grpc.CallOption) (*UploadUnittestReportResponse, error)
 }
@@ -79,6 +82,16 @@ func (c *coverageServiceClient) GetFileCoverage(ctx context.Context, in *GetFile
 	return out, nil
 }
 
+func (c *coverageServiceClient) GetMetadataList(ctx context.Context, in *GetMetadataListRequest, opts ...grpc.CallOption) (*GetMetadataListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMetadataListResponse)
+	err := c.cc.Invoke(ctx, CoverageService_GetMetadataList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *coverageServiceClient) UploadUnittestReport(ctx context.Context, in *UploadUnittestReportRequest, opts ...grpc.CallOption) (*UploadUnittestReportResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UploadUnittestReportResponse)
@@ -101,6 +114,8 @@ type CoverageServiceServer interface {
 	GetTreeNodes(context.Context, *GetTreeNodesRequest) (*GetTreeNodesResponse, error)
 	// 获取文件覆盖率详情及源码内容
 	GetFileCoverage(context.Context, *GetFileCoverageRequest) (*GetFileCoverageResponse, error)
+	// 获取指定测试类型的元数据列表 (Module, Branch, Commit)
+	GetMetadataList(context.Context, *GetMetadataListRequest) (*GetMetadataListResponse, error)
 	// 上报单测任务元数据
 	UploadUnittestReport(context.Context, *UploadUnittestReportRequest) (*UploadUnittestReportResponse, error)
 	mustEmbedUnimplementedCoverageServiceServer()
@@ -121,6 +136,9 @@ func (UnimplementedCoverageServiceServer) GetTreeNodes(context.Context, *GetTree
 }
 func (UnimplementedCoverageServiceServer) GetFileCoverage(context.Context, *GetFileCoverageRequest) (*GetFileCoverageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetFileCoverage not implemented")
+}
+func (UnimplementedCoverageServiceServer) GetMetadataList(context.Context, *GetMetadataListRequest) (*GetMetadataListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetMetadataList not implemented")
 }
 func (UnimplementedCoverageServiceServer) UploadUnittestReport(context.Context, *UploadUnittestReportRequest) (*UploadUnittestReportResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UploadUnittestReport not implemented")
@@ -200,6 +218,24 @@ func _CoverageService_GetFileCoverage_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CoverageService_GetMetadataList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMetadataListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).GetMetadataList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_GetMetadataList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).GetMetadataList(ctx, req.(*GetMetadataListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _CoverageService_UploadUnittestReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UploadUnittestReportRequest)
 	if err := dec(in); err != nil {
@@ -236,6 +272,10 @@ var CoverageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFileCoverage",
 			Handler:    _CoverageService_GetFileCoverage_Handler,
+		},
+		{
+			MethodName: "GetMetadataList",
+			Handler:    _CoverageService_GetMetadataList_Handler,
 		},
 		{
 			MethodName: "UploadUnittestReport",

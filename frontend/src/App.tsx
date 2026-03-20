@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CoverageTree } from './CoverageTree';
 import { SourceView } from './SourceView';
-import { Layout, ShieldCheck, Database, Calendar, ChevronRight, Activity, Search, RefreshCw, Layers } from 'lucide-react';
-import { getReportInfo, getTreeNodes, getFileCoverage } from './api';
+import { Layout, ShieldCheck, Database, Calendar, ChevronRight, Activity, Search, RefreshCw, Layers, ChevronDown } from 'lucide-react';
+import { getReportInfo, getTreeNodes, getFileCoverage, getMetadataList } from './api';
 import { NodeType, type ReportInfo, type TreeNode, type FileCoverage } from './types';
 
 const TEST_TYPES = [
@@ -14,9 +14,15 @@ const TEST_TYPES = [
 
 function App() {
   const [testType, setTestType] = useState(TEST_TYPES[0].id);
-  const [module, setModule] = useState("github.com/shuaibizhang/codecoverage");
-  const [branch, setBranch] = useState("main");
-  const [commit, setCommit] = useState("latest");
+  const [module, setModule] = useState("");
+  const [branch, setBranch] = useState("");
+  const [commit, setCommit] = useState("");
+
+  const [metadata, setMetadata] = useState<{ modules: string[], branches: string[], commits: string[] }>({
+    modules: [],
+    branches: [],
+    commits: []
+  });
 
   const [reportInfo, setReportInfo] = useState<ReportInfo | null>(null);
   const [rootNode, setRootNode] = useState<TreeNode | null>(null);
@@ -25,7 +31,38 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchMetadata = async (type: string) => {
+    try {
+      setLoading(true);
+      // 重置之前的状态
+      setMetadata({ modules: [], branches: [], commits: [] });
+      setModule("");
+      setBranch("");
+      setCommit("");
+      setReportInfo(null);
+      setRootNode(null);
+      setSelectedPath(null);
+      setFileData(null);
+
+      const data = await getMetadataList(type);
+      setMetadata(data);
+      if (data.modules.length > 0) setModule(data.modules[0]);
+      if (data.branches.length > 0) setBranch(data.branches[0]);
+      if (data.commits.length > 0) setCommit(data.commits[0]);
+    } catch (err) {
+      console.error("Failed to fetch metadata:", err);
+      setError("获取元数据失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMetadata(testType);
+  }, [testType]);
+
   const fetchReport = async () => {
+    if (!module || !branch || !commit) return;
     try {
       setLoading(true);
       setError(null);
@@ -83,8 +120,10 @@ function App() {
   };
 
   useEffect(() => {
-    fetchReport();
-  }, [testType]);
+    if (module && branch && commit) {
+      fetchReport();
+    }
+  }, [module, branch, commit]);
 
   const handleFileClick = async (path: string) => {
     setSelectedPath(path);
@@ -117,26 +156,35 @@ function App() {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="flex items-center bg-[#0d1117] border border-gray-700 rounded px-2 py-1">
+            <div className="flex items-center bg-[#0d1117] border border-gray-700 rounded px-2 py-1 relative">
               <span className="text-[10px] text-gray-500 mr-2 uppercase">Module</span>
-              <input 
-                className="bg-transparent border-none outline-none text-xs w-48 text-gray-300" 
+              <select 
+                className="bg-transparent border-none outline-none text-xs w-48 text-gray-300 appearance-none pr-6" 
                 value={module} onChange={e => setModule(e.target.value)}
-              />
+              >
+                {metadata.modules.map(m => <option key={m} value={m} className="bg-[#0d1117]">{m}</option>)}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 text-gray-500 pointer-events-none" />
             </div>
-            <div className="flex items-center bg-[#0d1117] border border-gray-700 rounded px-2 py-1">
+            <div className="flex items-center bg-[#0d1117] border border-gray-700 rounded px-2 py-1 relative">
               <span className="text-[10px] text-gray-500 mr-2 uppercase">Branch</span>
-              <input 
-                className="bg-transparent border-none outline-none text-xs w-24 text-gray-300" 
+              <select 
+                className="bg-transparent border-none outline-none text-xs w-24 text-gray-300 appearance-none pr-6" 
                 value={branch} onChange={e => setBranch(e.target.value)}
-              />
+              >
+                {metadata.branches.map(b => <option key={b} value={b} className="bg-[#0d1117]">{b}</option>)}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 text-gray-500 pointer-events-none" />
             </div>
-            <div className="flex items-center bg-[#0d1117] border border-gray-700 rounded px-2 py-1">
+            <div className="flex items-center bg-[#0d1117] border border-gray-700 rounded px-2 py-1 relative">
               <span className="text-[10px] text-gray-500 mr-2 uppercase">Commit</span>
-              <input 
-                className="bg-transparent border-none outline-none text-xs w-24 text-gray-300" 
+              <select 
+                className="bg-transparent border-none outline-none text-xs w-24 text-gray-300 appearance-none pr-6" 
                 value={commit} onChange={e => setCommit(e.target.value)}
-              />
+              >
+                {metadata.commits.map(c => <option key={c} value={c} className="bg-[#0d1117]">{c}</option>)}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 text-gray-500 pointer-events-none" />
             </div>
             <button 
               onClick={fetchReport}

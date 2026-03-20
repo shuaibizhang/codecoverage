@@ -13,7 +13,7 @@ const (
 type TestType string
 
 const (
-	UnitTest      TestType = "unit"
+	UnitTest      TestType = "unittest"
 	IntegrateTest TestType = "integrate"
 	OnlineTest    TestType = "online"
 	AutoTest      TestType = "auto"

@@ -29,6 +29,13 @@ service CoverageService {
     };
   }
 
+  // 获取指定测试类型的元数据列表 (Module, Branch, Commit)
+  rpc GetMetadataList(GetMetadataListRequest) returns (GetMetadataListResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/coverage/metadata"
+    };
+  }
+
   // 上报单测任务元数据
   rpc UploadUnittestReport(UploadUnittestReportRequest) returns (UploadUnittestReportResponse) {
     option (google.api.http) = {
@@ -36,6 +43,16 @@ service CoverageService {
       body: "*"
     };
   }
+}
+
+message GetMetadataListRequest {
+  string type = 1; // unittest, integrate, etc.
+}
+
+message GetMetadataListResponse {
+  repeated string modules = 1;
+  repeated string branches = 2;
+  repeated string commits = 3;
 }
 
 message UploadUnittestReportRequest {

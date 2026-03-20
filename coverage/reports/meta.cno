@@ -43,11 +43,48 @@ columns: block_offset,file_flags,total_lines,instr_lines,add_lines,delete_lines,
 -------------- carrier.go: 22840,0,62,28,0,0,0,0,0,0,0
 -------------- propagator.go: 23976,0,83,42,0,0,0,42,100,0,0
 
-0,325,182,0,0,0,130,71,0,0
----- redis/: 0,0,29,9,0,0,0,0,0,0,0
------- redis.go: 10348,0,29,9,0,0,0,0,0,0,0
----- config/: 0,0,56,24,0,0,0,0,0,0,0
------- config.go: 11644,0,56,24,0,0,0,0,0,0,0
----- dislock/: 0,0,174,95,0,0,0,0,0,0,0
------- dislock.go: 11884,0,174,95,0,0,0,0,0,0,0
+@meta
+module: shuaibizhang/transparent-context
+branch: bingozhang
+commit: fcc5ea89f901184d3d0ebf40db7e3cc117846575
+base_commit: fdb297e9fda62b40704981e746e60293fdef4fcd
+filter_version: 0
+total_files: 12
+inherit_info: 
+last_update: 
+columns: block_offset,file_flags,total_lines,instr_lines,add_lines,delete_lines,incr_instr_lines,cover_lines,coverage,incr_cover_lines,incr_coverage
+
+@tree
+*/: 0,0,1560,894,0,0,0,154,17,0,0
+-- coverage.out/: 0,0,780,447,0,0,0,77,17,0,0
+---- github.com/: 0,0,780,447,0,0,0,77,17,0,0
+------ shuaibizhang/: 0,0,780,447,0,0,0,77,17,0,0
+-------- transparent-context/: 0,0,780,447,0,0,0,77,17,0,0
+---------- propagation/: 0,0,145,70,0,0,0,42,60,0,0
+------------ carrier.go: 26248,0,62,28,0,0,0,0,0,0,0
+------------ propagator.go: 27996,0,83,42,0,0,0,42,100,0,0
+---------- middleware/: 0,0,232,139,0,0,0,0,0,0,0
+------------ httpmiddleware/: 0,0,114,64,0,0,0,0,0,0,0
+-------------- gin.go: 27524,0,114,64,0,0,0,0,0,0,0
+------------ grpcmiddleware/: 0,0,118,75,0,0,0,0,0,0,0
+-------------- interceptor.go: 32192,0,118,75,0,0,0,0,0,0,0
+---------- context/: 0,0,403,238,0,0,0,35,14,0,0
+------------ context.go: 30548,0,44,27,0,0,0,8,29,0,0
+------------ transparent_context.go: 30740,0,359,211,0,0,0,27,12,0,0
+-- demo/: 0,0,780,447,0,0,0,77,17,0,0
+---- coverage.out/: 0,0,780,447,0,0,0,77,17,0,0
+------ github.com/: 0,0,780,447,0,0,0,77,17,0,0
+-------- shuaibizhang/: 0,0,780,447,0,0,0,77,17,0,0
+---------- transparent-context/: 0,0,780,447,0,0,0,77,17,0,0
+------------ context/: 0,0,403,238,0,0,0,35,14,0,0
+-------------- context.go: 26512,0,44,27,0,0,0,8,29,0,0
+-------------- transparent_context.go: 28344,0,359,211,0,0,0,27,12,0,0
+------------ middleware/: 0,0,232,139,0,0,0,0,0,0,0
+-------------- httpmiddleware/: 0,0,114,64,0,0,0,0,0,0,0
+---------------- gin.go: 26704,0,114,64,0,0,0,0,0,0,0
+-------------- grpcmiddleware/: 0,0,118,75,0,0,0,0,0,0,0
+---------------- interceptor.go: 29796,0,118,75,0,0,0,0,0,0,0
+------------ propagation/: 0,0,145,70,0,0,0,42,60,0,0
+-------------- propagator.go: 27176,0,83,42,0,0,0,42,100,0,0
+-------------- carrier.go: 30284,0,62,28,0,0,0,0,0,0,0
 

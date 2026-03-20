@@ -11,6 +11,15 @@ export async function getReportInfo(type: string, module: string, branch: string
   return response.json();
 }
 
+export async function getMetadataList(type: string): Promise<{ modules: string[], branches: string[], commits: string[] }> {
+  const url = `${BASE_URL}/api/v1/coverage/metadata?type=${type}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch metadata list');
+  }
+  return response.json();
+}
+
 export async function getTreeNodes(reportId: string, path: string): Promise<TreeNode[]> {
   const url = `${BASE_URL}/api/v1/coverage/tree?report_id=${encodeURIComponent(reportId)}&path=${encodeURIComponent(path)}`;
   const response = await fetch(url);

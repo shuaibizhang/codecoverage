@@ -14,9 +14,9 @@ func TestReportKeyPathGeneration(t *testing.T) {
 		pk := NewReportKey(UnitTest, module, branch, commit)
 		path := pk.RealPathPrefix()
 
-		// 校验前缀：unit/{date}/my-module/
-		if !strings.HasPrefix(path, "unit/") {
-			t.Errorf("expected prefix unit/, got %s", path)
+		// 校验前缀：unittest/{date}/my-module/
+		if !strings.HasPrefix(path, "unittest/") {
+			t.Errorf("expected prefix unittest/, got %s", path)
 		}
 		if !strings.Contains(path, "/"+module+"/") {
 			t.Errorf("path should contain module: %s", path)
@@ -55,7 +55,7 @@ func TestReportKeyPathGeneration(t *testing.T) {
 }
 
 func TestNewCoverageKey(t *testing.T) {
-	cnoPath := "unit/2023-10-27/mod/br/mod_br_commit_123"
+	cnoPath := "unittest/2023-10-27/mod/br/mod_br_commit_123"
 	offset := int64(1024)
 
 	pk := NewCoverageKey(cnoPath, offset)
@@ -64,7 +64,7 @@ func TestNewCoverageKey(t *testing.T) {
 		t.Errorf("expected type %s, got %s", CoverageDataType, pk.Type())
 	}
 
-	expectedPath := "unit/2023-10-27/mod/br/mod_br_commit_123"
+	expectedPath := "unittest/2023-10-27/mod/br/mod_br_commit_123"
 	if pk.RealPathPrefix() != expectedPath {
 		t.Errorf("expected cda path %s, got %s", expectedPath, pk.RealPathPrefix())
 	}

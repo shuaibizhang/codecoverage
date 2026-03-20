@@ -24,6 +24,8 @@ type OSS interface {
 	StatObject(ctx context.Context, bucketName, objectName string) (minio.ObjectInfo, error)
 	// PresignedGetObject 生成预签名下载链接
 	PresignedGetObject(ctx context.Context, bucketName, objectName string, expires time.Duration) (string, error)
+	// MakeBucket 创建存储桶
+	MakeBucket(ctx context.Context, bucketName string) error
 }
 
 // minioOSS 实现 OSS 接口
@@ -134,4 +136,18 @@ func (m *minioOSS) PresignedGetObject(ctx context.Context, bucketName, objectNam
 		return "", fmt.Errorf("failed to generate presigned url for %s in %s: %w", objectName, bucketName, err)
 	}
 	return u.String(), nil
+}
+
+func (m *minioOSS) MakeBucket(ctx context.Context, bucketName string) error {
+	exists, err := m.client.BucketExists(ctx, bucketName)
+	if err != nil {
+		return fmt.Errorf("failed to check if bucket %s exists: %w", bucketName, err)
+	}
+	if !exists {
+		err = m.client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to make bucket %s: %w", bucketName, err)
+		}
+	}
+	return nil
 }

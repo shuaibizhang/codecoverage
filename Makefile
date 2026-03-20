@@ -21,8 +21,8 @@ minio-down:
 
 # 启动后端服务器
 run-backend:
-	@echo "Starting backend server..."
-	go run cmd/cover-server/main.go
+	@echo "Starting backend server via go run cmd/cover-server/main.go ..."
+	go run cmd/cover-server/main.go 2>&1 | tee -a backend.log
 
 # 启动前端服务器
 run-frontend:
@@ -41,4 +41,5 @@ gen_output:
 	mkdir -p output/{bin,conf}
 
 remote_port_forward:
-	make run-backend && ssh -fCNR 0.0.0.0:18080:localhost:8080 bingoserver
+	ssh -fCNR 0.0.0.0:18080:localhost:8080 bingoserver
+	make run-backend

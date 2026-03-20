@@ -11,6 +11,8 @@ import (
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/tree"
 )
 
+type StorageFactory func(ctx context.Context, pk partitionkey.PartitionKey) (report.Storage, error)
+
 type ReportManager interface {
 	/** 操作报告 **/
 	// 创建一个全新报告
@@ -32,21 +34,29 @@ type ReportManager interface {
 }
 
 type reportManager struct {
-	storage report.Storage
+	storageFactory StorageFactory
 }
 
-func NewReportManager(storage report.Storage) ReportManager {
+func NewReportManager(factory StorageFactory) ReportManager {
 	return &reportManager{
-		storage: storage,
+		storageFactory: factory,
 	}
 }
 
 func (m *reportManager) CreateReport(ctx context.Context, meta report.MetaInfo, key partitionkey.PartitionKey) (report.CoverReport, error) {
-	return report.NewCoverReport(m.storage, meta, key), nil
+	st, err := m.storageFactory(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	return report.NewCoverReport(st, meta, key), nil
 }
 
 func (m *reportManager) Open(ctx context.Context, pk partitionkey.PartitionKey) (report.CoverReport, error) {
-	rep := report.NewCoverReport(m.storage, report.MetaInfo{}, pk)
+	st, err := m.storageFactory(ctx, pk)
+	if err != nil {
+		return nil, err
+	}
+	rep := report.NewCoverReport(st, report.MetaInfo{}, pk)
 	if err := rep.Unmarshal(ctx, pk); err != nil {
 		return nil, err
 	}
@@ -54,7 +64,11 @@ func (m *reportManager) Open(ctx context.Context, pk partitionkey.PartitionKey) 
 }
 
 func (m *reportManager) OpenWrite(ctx context.Context, pk partitionkey.PartitionKey) (report.CoverReport, error) {
-	rep := report.NewCoverReport(m.storage, report.MetaInfo{}, pk)
+	st, err := m.storageFactory(ctx, pk)
+	if err != nil {
+		return nil, err
+	}
+	rep := report.NewCoverReport(st, report.MetaInfo{}, pk)
 	if err := rep.Unmarshal(ctx, pk); err != nil {
 		return nil, err
 	}
