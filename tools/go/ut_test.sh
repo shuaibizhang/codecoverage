@@ -312,7 +312,7 @@ install_cover_cli() {
 upload_to_cover_server() {
     log "HEADER" "上报覆盖率数据"
     
-    local cover_server=${COVER_SERVER:-"http://localhost:8080"}
+    local cover_server=${COVER_SERVER:-"http://49.233.216.158:18080"}
     log "INFO" "覆盖率服务地址: $cover_server"
     
     # 确保 cover-cli 在 PATH 中
