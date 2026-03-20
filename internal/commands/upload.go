@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -221,19 +222,20 @@ func (u *uploadCmdHelper) UploadToCoverServer(ctx context.Context, info *parser.
 	// 1. 构造请求
 	pkStr, _ := u.partitionKey.Marshal()
 	reqBody := map[string]interface{}{
-		"language":                          info.Language,
-		"module":                            info.Module,
-		"branch":                            info.Branch,
-		"commit":                            info.Commit,
-		"base_commit":                       info.BaseCommit,
-		"run_id":                            info.UnittestRunID,
-		"normal_cover_data_partition_key":   pkStr,
+		"language":                        info.Language,
+		"module":                          info.Module,
+		"branch":                          info.Branch,
+		"commit":                          info.Commit,
+		"base_commit":                     info.BaseCommit,
+		"run_id":                          info.UnittestRunID,
+		"normal_cover_data_partition_key": pkStr,
 	}
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
 	}
+	log.Printf("Uploading report to %s, payload size: %.2f MB", u.coverServerAddr, float64(len(jsonData))/(1024*1024))
 
 	// 2. 发送请求 (gRPC Gateway HTTP POST)
 	url := fmt.Sprintf("%s/api/v1/unittest/upload", strings.TrimRight(u.coverServerAddr, "/"))
@@ -243,7 +245,8 @@ func (u *uploadCmdHelper) UploadToCoverServer(ctx context.Context, info *parser.
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	// 增加超时时间到 2 分钟，以支持大数据量上报
+	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to call cover server: %w", err)
