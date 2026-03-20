@@ -298,10 +298,10 @@ generate_git_diff() {
 # --- 安装与上报 ---
 install_cover_cli() {
     log "HEADER" "安装 cover-cli"
-    log "INFO" "正在从 ./cmd/cover-cli 安装 cover-cli..."
+    log "INFO" "正在从 github.com/shuaibizhang/codecoverage/cmd/cover-cli@bingozhang 安装 cover-cli..."
     
-    # 确保在项目根目录下执行安装
-    if go install ./cmd/cover-cli; then
+    # 从远程仓库特定分支安装
+    if go install github.com/shuaibizhang/codecoverage/cmd/cover-cli@bingozhang; then
         log "SUCCESS" "cover-cli 安装成功"
     else
         log "ERROR" "cover-cli 安装失败"

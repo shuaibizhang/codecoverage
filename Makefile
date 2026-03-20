@@ -22,7 +22,7 @@ minio-down:
 # 启动后端服务器
 run-backend:
 	@echo "Starting backend server..."
-	go run cmd/server/main.go
+	go run cmd/cover-server/main.go
 
 # 启动前端服务器
 run-frontend:
@@ -33,3 +33,9 @@ run-frontend:
 test-report:
 	@echo "Running coverage flow test..."
 	go test -v uint_cover_test.go
+
+build:
+	go build -o cover-server ./cmd/cover-server/main.go
+
+gen_output:
+	mkdir -p output/{bin,conf}

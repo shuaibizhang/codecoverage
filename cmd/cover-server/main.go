@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 
@@ -20,9 +21,16 @@ import (
 	"github.com/shuaibizhang/codecoverage/store/db"
 )
 
+var confPath = flag.String("conf", "conf/dev.toml", "")
+
 func main() {
+	flag.Parse()
+	if confPath == nil || *confPath == "" {
+		panic("conf path err")
+	}
+
 	// 0. 初始化配置
-	if err := config.Init(""); err != nil {
+	if err := config.Init(*confPath); err != nil {
 		log.Printf("Warning: failed to init config, using default values: %v", err)
 	}
 	cfg := config.GetConfig()
