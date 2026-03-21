@@ -69,15 +69,14 @@ func Init(configPath string) error {
 		fmt.Printf("Warning: failed to read local config file: %v\n", err)
 	}
 
-	// 5. 解析初步配置以获取 Apollo 连接信息
-	var tempCfg Config
-	if err := v.Unmarshal(&tempCfg); err != nil {
-		return fmt.Errorf("failed to unmarshal initial config: %w", err)
+	// 5. 解析到全局 Config 对象
+	if err := v.Unmarshal(&cfg); err != nil {
+		return fmt.Errorf("failed to unmarshal final config: %w", err)
 	}
 
 	// 6. 如果开启了 Apollo，则拉取远程配置并 Merge 到 Viper (优先级高于文件，但低于 ENV/CLI)
-	if tempCfg.ApolloConfig.Enabled {
-		apolloCli, err := apollo.NewApolloClient(tempCfg.ApolloConfig)
+	if cfg.ApolloConfig.Enabled {
+		apolloCli, err := apollo.NewApolloClient(cfg.ApolloConfig)
 		if err != nil {
 			return fmt.Errorf("failed to create apollo client: %w", err)
 		}
@@ -85,11 +84,6 @@ func Init(configPath string) error {
 		if err := apolloCli.UnmarshalYAML("github", &cfg.GithubConfig); err != nil {
 			fmt.Printf("Warning: failed to load github config from apollo: %v\n", err)
 		}
-	}
-
-	// 7. 最终解析到全局 Config 对象
-	if err := v.Unmarshal(&cfg); err != nil {
-		return fmt.Errorf("failed to unmarshal final config: %w", err)
 	}
 
 	fmt.Printf("Config initialized successfully. Apollo enabled: %v\n", cfg.ApolloConfig.Enabled)
