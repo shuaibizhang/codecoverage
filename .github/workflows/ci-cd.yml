@@ -18,24 +18,22 @@ env:
   DOCKER_HUB_REPO_AGENT: ${{ secrets.DOCKER_USERNAME }}/cover-agent
 
 jobs:
-  # --- CI Build Job，构建任务 ---
-  build:
+  # --- 自动构建 cover-server 任务 ---
+  build-server:
     runs-on: ubuntu-latest
     steps:
       - name: 切换到代码
         uses: actions/checkout@v4
 
-      - name: 设置 Docker Buildx，用于构建镜像
+      - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: 登录 Docker Hub
         uses: docker/login-action@v3
-
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 自动构建 cover-server
       - name: 构建并推送 cover-server 镜像
         uses: docker/build-push-action@v5
         with:
@@ -47,9 +45,25 @@ jobs:
             SERVICE_TYPE=server
             COV=yes
 
-      # 手动触发时构建 cover-agent
+  # --- 手动构建 cover-agent 任务 ---
+  build-agent:
+    # 仅在手动触发且 build_agent 输入为 true 时执行
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_agent == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 切换到代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: 构建并推送 cover-agent 镜像
-        if: ${{ github.event.inputs.build_agent == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -60,10 +74,11 @@ jobs:
             SERVICE_TYPE=agent
             COV=no
 
-  # --- CI 部署任务 ---
+  # --- 部署任务 ---
   deploy:
-    needs: build
-    if: github.event_name == 'push' # 仅在代码推送时自动部署
+    needs: build-server
+    # 允许代码推送或手动触发时部署
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: 切换代码
