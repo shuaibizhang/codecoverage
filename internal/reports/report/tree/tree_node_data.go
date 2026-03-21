@@ -1,8 +1,12 @@
 package tree
 
 type TreeNodeData struct {
+	Name  string
+	Path  string
+	IsDir bool
 	FileLineInfo
 	FileCoverInfo
+	HasIncrement bool // 是否有增量数据
 }
 
 // FileLineInfo 文件行信息

@@ -47,4 +47,7 @@ func (s *StatAggregator) VisitFile(file *FileNode) {
 	s.Stat.IncrInstrLines += stat.IncrInstrLines
 	s.Stat.CoverLines += stat.CoverLines
 	s.Stat.IncrCoverLines += stat.IncrCoverLines
+	if stat.HasIncrement {
+		s.Stat.HasIncrement = true
+	}
 }

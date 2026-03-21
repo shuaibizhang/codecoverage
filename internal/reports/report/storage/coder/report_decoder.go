@@ -389,5 +389,12 @@ func (d *reportDecoder) parseTreeNodeData(meta *report.MetaInfo, text string, da
 	data.IncrCoverLines = u32(parts[9])
 	data.IncrCoverage = u32(parts[10])
 
+	if len(parts) >= 12 {
+		data.HasIncrement = strings.TrimSpace(parts[11]) == "1"
+	} else {
+		// 向后兼容：如果不存在该列，根据 IncrInstrLines 判断
+		data.HasIncrement = data.IncrInstrLines > 0
+	}
+
 	return blockOffset, fileFlags, nil
 }

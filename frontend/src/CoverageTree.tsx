@@ -12,12 +12,13 @@ function cn(...inputs: ClassValue[]) {
 interface TreeItemProps {
   node: TreeNode;
   level: number;
-  onFileClick: (path: string) => void;
+  onNodeClick: (node: TreeNode) => void;
   selectedPath: string | null;
   reportId: string;
+  isIncrement: boolean;
 }
 
-const TreeItem: React.FC<TreeItemProps> = ({ node, level, onFileClick, selectedPath, reportId }) => {
+const TreeItem: React.FC<TreeItemProps> = ({ node, level, onNodeClick, selectedPath, reportId, isIncrement }) => {
   const [isOpen, setIsOpen] = useState(level === 0);
   const [children, setChildren] = useState<TreeNode[]>(node.children || []);
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, onFileClick, selectedP
       async function fetchChildren() {
         setLoading(true);
         try {
-          const fetchedChildren = await getTreeNodes(reportId, node.path);
+          const fetchedChildren = await getTreeNodes(reportId, node.path, isIncrement);
           setChildren(fetchedChildren);
         } catch (err) {
           console.error("Failed to fetch children:", err);
@@ -40,13 +41,30 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, onFileClick, selectedP
       }
       fetchChildren();
     }
-  }, [isDir, isOpen, node.path, reportId]);
+  }, [isDir, isOpen, node.path, reportId, isIncrement]);
+
+  useEffect(() => {
+    // 当切换增量模式时，重新获取子节点
+    if (isDir && isOpen) {
+      async function fetchChildren() {
+        setLoading(true);
+        try {
+          const fetchedChildren = await getTreeNodes(reportId, node.path, isIncrement);
+          setChildren(fetchedChildren);
+        } catch (err) {
+          console.error("Failed to fetch children:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+      fetchChildren();
+    }
+  }, [isIncrement]);
 
   const toggle = (e: React.MouseEvent) => {
+    onNodeClick(node);
     if (isDir) {
       setIsOpen(!isOpen);
-    } else {
-      onFileClick(node.path);
     }
     e.stopPropagation();
   };
@@ -57,40 +75,47 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, onFileClick, selectedP
     return 'text-red-500';
   };
 
+  const coverage = isIncrement ? (node.stat?.incr_coverage || 0) : (node.stat?.coverage || 0);
+  const coverLines = isIncrement ? (node.stat?.incr_cover_lines || 0) : (node.stat?.cover_lines || 0);
+  const instrLines = isIncrement ? (node.stat?.incr_instr_lines || 0) : (node.stat?.instr_lines || 0);
+
   return (
-    <div className="select-none">
+    <div className="select-none group">
       <div
         className={cn(
-          "flex items-center py-1 px-2 hover:bg-gray-800 cursor-pointer text-sm border-l-2",
-          isSelected ? "bg-gray-700 border-blue-500" : "border-transparent"
+          "flex items-center py-0.5 px-2 hover:bg-gray-800/50 cursor-pointer text-[11px] border-l-2 transition-colors",
+          isSelected ? "bg-blue-600/10 border-blue-500 text-blue-400" : "border-transparent text-gray-400 hover:text-gray-200"
         )}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
+        style={{ paddingLeft: `${level * 12 + 4}px` }}
         onClick={toggle}
       >
-        <span className="w-5 flex items-center justify-center mr-1 text-gray-400">
+        <span className="w-4 flex items-center justify-center mr-0.5 text-gray-500">
           {isDir ? (
-            isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+            isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />
           ) : null}
         </span>
-        <span className="mr-2">
+        <span className="mr-1.5 shrink-0">
           {isDir ? (
-            <Folder size={16} className="text-blue-400" />
+            <Folder size={14} className={cn("transition-colors", isOpen ? "text-blue-400" : "text-gray-500 group-hover:text-blue-400")} />
           ) : (
-            <FileCode size={16} className="text-gray-300" />
+            <FileCode size={14} className={cn("transition-colors", isSelected ? "text-blue-400" : "text-gray-500 group-hover:text-gray-300")} />
           )}
         </span>
-        <span className="flex-grow truncate text-gray-200">{node.name}</span>
-        <span className={cn("ml-4 font-mono font-medium", getCoverageColor(node.stat?.coverage || 0))}>
-          {(node.stat?.coverage || 0).toFixed(1)}%
-        </span>
-        <span className="ml-4 text-xs text-gray-500 w-24 text-right">
-          {node.stat?.cover_lines || 0}/{node.stat?.instr_lines || 0}
-        </span>
+        <span className="flex-grow truncate font-medium">{node.name}</span>
+        
+        <div className="flex items-center space-x-2 opacity-60 group-hover:opacity-100 transition-opacity ml-2">
+          <span className={cn("font-mono font-bold text-[10px]", getCoverageColor(coverage))}>
+            {coverage.toFixed(0)}%
+          </span>
+          <span className="text-[9px] text-gray-600 w-16 text-right font-mono hidden sm:inline">
+            {coverLines}/{instrLines}
+          </span>
+        </div>
       </div>
       {isDir && isOpen && (
-        <div>
+        <div className="border-l border-gray-800/30 ml-[10px]">
           {loading ? (
-            <div className="py-1 text-xs text-gray-500 italic" style={{ paddingLeft: `${(level + 1) * 16 + 24}px` }}>
+            <div className="py-1 text-[9px] text-gray-600 italic" style={{ paddingLeft: `${(level + 1) * 12 + 16}px` }}>
               加载中...
             </div>
           ) : (
@@ -99,9 +124,10 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, onFileClick, selectedP
                 key={child.path}
                 node={child}
                 level={level + 1}
-                onFileClick={onFileClick}
+                onNodeClick={onNodeClick}
                 selectedPath={selectedPath}
                 reportId={reportId}
+                isIncrement={isIncrement}
               />
             ))
           )}
@@ -111,24 +137,33 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, onFileClick, selectedP
   );
 };
 
-export const CoverageTree: React.FC<{
-  tree: TreeNode;
-  onFileClick: (path: string) => void;
+interface CoverageTreeProps {
+  rootNode: TreeNode | null;
+  onNodeClick: (node: TreeNode) => void;
   selectedPath: string | null;
   reportId: string;
-}> = ({ tree, onFileClick, selectedPath, reportId }) => {
+  isIncrement: boolean;
+}
+
+export const CoverageTree: React.FC<CoverageTreeProps> = ({ rootNode, onNodeClick, selectedPath, reportId, isIncrement }) => {
+  if (!rootNode) return null;
+
   return (
-    <div className="bg-[#1e1e1e] h-full overflow-y-auto border-r border-gray-800">
-      <div className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-800">
-        目录结构
+    <div className="flex flex-col h-full bg-[#0d1117]">
+      <div className="px-3 py-1.5 border-b border-gray-800 bg-[#161b22] text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center">
+        <Folder size={12} className="mr-2 text-gray-500" />
+        文件目录树
       </div>
-      <TreeItem 
-        node={tree} 
-        level={0} 
-        onFileClick={onFileClick} 
-        selectedPath={selectedPath} 
-        reportId={reportId}
-      />
+      <div className="flex-grow overflow-y-auto custom-scrollbar">
+        <TreeItem
+          node={rootNode}
+          level={0}
+          onNodeClick={onNodeClick}
+          selectedPath={selectedPath}
+          reportId={reportId}
+          isIncrement={isIncrement}
+        />
+      </div>
     </div>
   );
 };

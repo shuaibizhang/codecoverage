@@ -42,12 +42,17 @@ func setupRealStorage(t *testing.T) (report.Storage, func()) {
 	s := storage.NewStorage(metaFile, coverFile, &mockReportLock{})
 
 	cleanup := func() {
-		metaFile.Close()
-		coverFile.Close()
+		s.Close()
 		os.RemoveAll(tmpDir)
 	}
 
 	return s, cleanup
+}
+
+func testStorageFactory(s report.Storage) StorageFactory {
+	return func(ctx context.Context, pk partitionkey.PartitionKey) (report.Storage, error) {
+		return s, nil
+	}
 }
 
 // mockPartitionKey 模拟 partitionkey.PartitionKey
@@ -66,7 +71,7 @@ func TestReportManager_CreateReport(t *testing.T) {
 	storage, cleanup := setupRealStorage(t)
 	defer cleanup()
 
-	mgr := NewReportManager(storage)
+	mgr := NewReportManager(testStorageFactory(storage))
 	ctx := context.Background()
 	meta := report.MetaInfo{Module: "test"}
 	pk := &mockPartitionKey{}
@@ -81,7 +86,7 @@ func TestReportManager_Open(t *testing.T) {
 	s, cleanup := setupRealStorage(t)
 	defer cleanup()
 
-	mgr := NewReportManager(s)
+	mgr := NewReportManager(testStorageFactory(s))
 	ctx := context.Background()
 	pk := &mockPartitionKey{}
 
@@ -112,7 +117,7 @@ func TestReportManager_MergeSameCommitReport(t *testing.T) {
 	s, cleanup := setupRealStorage(t)
 	defer cleanup()
 
-	mgr := NewReportManager(s)
+	mgr := NewReportManager(testStorageFactory(s))
 	ctx := context.Background()
 
 	pk := &mockPartitionKey{}

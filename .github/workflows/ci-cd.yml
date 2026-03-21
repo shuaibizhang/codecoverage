@@ -1,0 +1,95 @@
+name: CI/CD Workflow
+
+on:
+  push:
+    branches: [ "main", "bingozhang" ]
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      build_agent:
+        description: '是否构建并推送 cover-agent 镜像到 Docker Hub'
+        required: true
+        type: boolean
+        default: false
+
+# 环境变量，docker hub仓库地址
+env:
+  DOCKER_HUB_REPO_SERVER: ${{ secrets.DOCKER_USERNAME }}/cover-server
+  DOCKER_HUB_REPO_AGENT: ${{ secrets.DOCKER_USERNAME }}/cover-agent
+
+jobs:
+  # --- CI Build Job，构建任务 ---
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 切换到代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Docker Buildx，用于构建镜像
+        uses: actions/setup-buildx-action@v3
+
+      - name: 登录 Docker Hub
+        uses: actions/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 自动构建 cover-server
+      - name: 构建并推送 cover-server 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.DOCKER_HUB_REPO_SERVER }}:latest
+          build-args: |
+            SERVICE_TYPE=server
+            COV=yes
+
+      # 手动触发时构建 cover-agent
+      - name: 构建并推送 cover-agent 镜像
+        if: ${{ github.event.inputs.build_agent == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.DOCKER_HUB_REPO_AGENT }}:latest
+          build-args: |
+            SERVICE_TYPE=agent
+            COV=no
+
+  # --- CI 部署任务 ---
+  deploy:
+    needs: build
+    if: github.event_name == 'push' # 仅在代码推送时自动部署
+    runs-on: ubuntu-latest
+    steps:
+      - name: 切换代码
+        uses: actions/checkout@v4
+
+      - name: 拷贝 docker-compose.yml 到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "/app/codecoverage"
+
+      - name: 部署到服务器 通过 SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /app/codecoverage
+            # 登录 Docker Hub 以拉取私有镜像（如果需要）
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            # 拉取最新镜像
+            docker compose pull
+            # 重启容器
+            docker compose up -d
+            # 清理无用镜像
+            docker image prune -f

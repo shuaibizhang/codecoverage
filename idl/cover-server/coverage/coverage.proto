@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package api.v1.coverage;
+
+option go_package = "github.com/shuaibizhang/codecoverage/idl/cover-server/coverage;coverage";
+
+import "google/api/annotations.proto";
+
+// CoverageService 提供覆盖率报告的查询、导航和详情获取
+service CoverageService {
+  // 根据业务维度查找覆盖率报告
+  rpc GetReportInfo(GetReportInfoRequest) returns (GetReportInfoResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/coverage/report"
+    };
+  }
+
+  // 获取目录树节点统计信息（支持分层加载）
+  rpc GetTreeNodes(GetTreeNodesRequest) returns (GetTreeNodesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/coverage/tree"
+    };
+  }
+
+  // 获取文件覆盖率详情及源码内容
+  rpc GetFileCoverage(GetFileCoverageRequest) returns (GetFileCoverageResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/coverage/file"
+    };
+  }
+
+  // 获取指定测试类型的元数据列表 (Module, Branch, Commit)
+  rpc GetMetadataList(GetMetadataListRequest) returns (GetMetadataListResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/coverage/metadata"
+    };
+  }
+
+  // 上报单测任务元数据
+  rpc UploadUnittestReport(UploadUnittestReportRequest) returns (UploadUnittestReportResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/unittest/upload"
+      body: "*"
+    };
+  }
+}
+
+message GetMetadataListRequest {
+  string type = 1; // unittest, integrate, etc.
+}
+
+message GetMetadataListResponse {
+  repeated string modules = 1;
+  repeated string branches = 2;
+  repeated string commits = 3;
+}
+
+message UploadUnittestReportRequest {
+  string language = 1;
+  string module = 2;
+  string branch = 3;
+  string commit = 4;
+  string base_commit = 5;
+  string run_id = 6;
+  string normal_cover_data_partition_key = 7;
+  string report_partition_key = 8;
+}
+
+message UploadUnittestReportResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetReportInfoRequest {
+  string module = 1;
+  string branch = 2;
+  string commit = 3;
+  string type = 4; // unit_test, auto_test, etc.
+}
+
+message MetaInfo {
+  string module = 1;
+  string branch = 2;
+  string commit = 3;
+  uint32 total_files = 4;
+  uint32 coverage = 5;
+  string last_update = 6;
+}
+
+message GetReportInfoResponse {
+  string report_id = 1; // 报告唯一标识（通常是 PK 的 Marshal 字符串）
+  MetaInfo meta = 2;
+}
+
+message GetTreeNodesRequest {
+  string report_id = 1;
+  string path = 2; // 目录路径，根目录传 ""
+  bool is_increment = 3; // 是否查看增量
+}
+
+message TreeNodeStat {
+  uint32 total_lines = 1;
+  uint32 instr_lines = 2;
+  uint32 cover_lines = 3;
+  uint32 coverage = 4;
+  uint32 add_lines = 5;
+  uint32 delete_lines = 6;
+  uint32 incr_instr_lines = 7;
+  uint32 incr_cover_lines = 8;
+  uint32 incr_coverage = 9;
+  bool has_increment = 10; // 是否有增量数据
+}
+
+message TreeNode {
+  string name = 1;
+  string path = 2;
+  int32 type = 3; // 0: Dir, 1: File
+  TreeNodeStat stat = 4;
+}
+
+message GetTreeNodesResponse {
+  repeated TreeNode nodes = 1;
+}
+
+message GetFileCoverageRequest {
+  string report_id = 1;
+  string path = 2;
+}
+
+message GetFileCoverageResponse {
+  string path = 1;
+  repeated uint32 lines = 2; // 编码后的覆盖率行数据
+  uint32 file_flags = 3;
+  string content = 4;        // 关键：文件源码内容（Base64 或 原始字符串）
+}

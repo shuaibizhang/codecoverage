@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package coveragent;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/shuaibizhang/codecoverage/idl/cover-agent;coveragent";
+
+message BuildInfo {
+    string language = 1;
+    string module = 2;
+    string branch = 3;
+    string commit_id = 4;
+    string base_commit_id = 5;
+    string build_id = 6;
+}
+
+message RegisterSUTRequest {
+    string name = 1;
+    string address = 2;
+    BuildInfo build_info = 3;
+}
+
+message RegisterSUTResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+service RegisterService {
+    rpc RegisterSUT(RegisterSUTRequest) returns (RegisterSUTResponse) {
+        option (google.api.http) = {
+            post: "/agent/api/v1/sut/register"
+            body: "*"
+        };
+    }
+}

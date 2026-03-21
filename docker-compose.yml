@@ -1,45 +1,30 @@
 version: '3.8'
 
 services:
-  minio:
-    image: minio/minio:latest
-    container_name: codecoverage-minio
-    ports:
-      - "9000:9000"    # API 端口
-      - "9001:9001"    # 控制台管理界面端口
+  cover-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codecoverage-server
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password123
+      - SERVICE_TYPE=server
+    ports:
+      - "8080:8080"
     volumes:
-      - ./data/minio:/data
-    command: server /data --console-address ":9001"
+      - ./conf:/app/conf
     restart: always
 
-  # 可选：MinIO Client (mc) 用于自动创建 bucket
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until (/usr/bin/mc config host add local http://minio:9000 admin password123) do echo 'Waiting for MinIO...' && sleep 1; done;
-      /usr/bin/mc mb --ignore-existing local/coverage-reports;
-      /usr/bin/mc anonymous set public local/coverage-reports;
-      exit 0;
-      "
-
-  mysql:
-    image: mysql:8.0
-    container_name: codecoverage-mysql
+  cover-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codecoverage-agent
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: coverage_db
-      MYSQL_USER: coverage_user
-      MYSQL_PASSWORD: coverage_password
-    ports:
-      - "3306:3306"
+      - SERVICE_TYPE=agent
+      - COVER_ADDR=127.0.0.1:8080 # 假设待测服务也在同一网络命名空间
+    network_mode: "service:cover-server"
+    depends_on:
+      - cover-server
     volumes:
-      - ./data/mysql:/var/lib/mysql
-      # 将 SQL 脚本挂载到初始化目录，容器启动时会自动执行
-      - ./script/sql/unittest.sql:/docker-entrypoint-initdb.d/unittest.sql
+      - ./conf:/app/conf
     restart: always

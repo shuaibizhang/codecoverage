@@ -1,20 +1,29 @@
 set -ex
 
-APP=bin/cover-server
+APP_SERVER=bin/cover-server
+APP_AGENT=bin/cover-agent
 CONF=""
 
 choose_conf_file() {
     local cluster="dev"
     if [[ "x$cluster" == "xdev" ]]; then 
-        CONF="conf/dev.toml"
+        if [[ "x$SERVICE_TYPE" == "xagent" ]]; then
+            CONF="conf/agent-dev.toml"
+        else
+            CONF="conf/server-dev.toml"
+        fi
     fi
     echo "use conf: $CONF"
 }
 
 # 启动脚本
-function start(){
-    # 使用指定命令替换当前的shell进程，以非子进程方式启动，这样可以方便信号传递
-    exec $APP -conf $CONF
+function start_server(){
+    exec $APP_SERVER -conf $CONF
+}
+
+function start_agent(){
+    # 假设agent启动参数和server类似，或者根据需要调整
+    exec $APP_AGENT -c $CONF
 }
 
 main() {
@@ -22,7 +31,11 @@ main() {
     case $action in 
         "start" )
             choose_conf_file
-            start 
+            if [[ "x$SERVICE_TYPE" == "xagent" ]]; then
+                start_agent
+            else
+                start_server
+            fi
         ;;
         
         * )

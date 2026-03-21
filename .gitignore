@@ -21,7 +21,6 @@ conf/dev.toml
 *.env.local
 
 # Data and reports
-data/
 coverage/reports/
 coverage/upload/
 
@@ -37,3 +36,5 @@ logs/
 *.swp
 *.swo
 
+
+output/*

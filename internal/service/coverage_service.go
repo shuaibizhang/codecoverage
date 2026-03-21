@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/shuaibizhang/codecoverage/api/v1/coverage"
+	"github.com/shuaibizhang/codecoverage/idl/cover-server/coverage"
 	cp "github.com/shuaibizhang/codecoverage/internal/code_provider"
 	"github.com/shuaibizhang/codecoverage/internal/reports/manager"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/storage/partitionkey"
@@ -108,11 +108,16 @@ func (s *coverageService) GetTreeNodes(ctx context.Context, req *coverage.GetTre
 	var nodes []*coverage.TreeNode
 	if ok {
 		for child := range dir.Children() {
+			stat := child.GetStat()
+			// 如果查看增量，过滤掉没有增量数据的节点
+			if req.IsIncrement && !stat.HasIncrement {
+				continue
+			}
+
 			nodeType := int32(0) // Dir
 			if !child.IsDir() {
 				nodeType = 1 // File
 			}
-			stat := child.GetStat()
 			nodes = append(nodes, &coverage.TreeNode{
 				Name: child.Name(),
 				Path: child.Path(),
@@ -127,27 +132,31 @@ func (s *coverageService) GetTreeNodes(ctx context.Context, req *coverage.GetTre
 					IncrInstrLines: stat.IncrInstrLines,
 					IncrCoverLines: stat.IncrCoverLines,
 					IncrCoverage:   stat.IncrCoverage,
+					HasIncrement:   stat.HasIncrement,
 				},
 			})
 		}
 	} else {
 		stat := node.GetStat()
-		nodes = append(nodes, &coverage.TreeNode{
-			Name: node.Name(),
-			Path: node.Path(),
-			Type: 1,
-			Stat: &coverage.TreeNodeStat{
-				TotalLines:     stat.TotalLines,
-				InstrLines:     stat.InstrLines,
-				CoverLines:     stat.CoverLines,
-				Coverage:       stat.Coverage,
-				AddLines:       stat.AddLines,
-				DeleteLines:    stat.DeleteLines,
-				IncrInstrLines: stat.IncrInstrLines,
-				IncrCoverLines: stat.IncrCoverLines,
-				IncrCoverage:   stat.IncrCoverage,
-			},
-		})
+		if !req.IsIncrement || stat.HasIncrement {
+			nodes = append(nodes, &coverage.TreeNode{
+				Name: node.Name(),
+				Path: node.Path(),
+				Type: 1,
+				Stat: &coverage.TreeNodeStat{
+					TotalLines:     stat.TotalLines,
+					InstrLines:     stat.InstrLines,
+					CoverLines:     stat.CoverLines,
+					Coverage:       stat.Coverage,
+					AddLines:       stat.AddLines,
+					DeleteLines:    stat.DeleteLines,
+					IncrInstrLines: stat.IncrInstrLines,
+					IncrCoverLines: stat.IncrCoverLines,
+					IncrCoverage:   stat.IncrCoverage,
+					HasIncrement:   stat.HasIncrement,
+				},
+			})
+		}
 	}
 
 	return &coverage.GetTreeNodesResponse{Nodes: nodes}, nil

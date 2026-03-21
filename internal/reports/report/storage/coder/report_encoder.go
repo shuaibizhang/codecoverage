@@ -18,7 +18,7 @@ type ReportEncoder interface {
 
 var treeNodeDataColumns = []string{
 	"block_offset", "file_flags", "total_lines", "instr_lines", "add_lines", "delete_lines",
-	"incr_instr_lines", "cover_lines", "coverage", "incr_cover_lines", "incr_coverage",
+	"incr_instr_lines", "cover_lines", "coverage", "incr_cover_lines", "incr_coverage", "has_increment",
 }
 
 // reportEncoder 实现了覆盖率报告的编码
@@ -187,6 +187,12 @@ func (e *reportEncoder) encodeNodeData(w *bufio.Writer, node tree.TreeNode, colu
 			vals = append(vals, strconv.FormatUint(uint64(data.IncrCoverLines), 10))
 		case "incr_coverage":
 			vals = append(vals, strconv.FormatUint(uint64(data.IncrCoverage), 10))
+		case "has_increment":
+			val := "0"
+			if data.HasIncrement {
+				val = "1"
+			}
+			vals = append(vals, val)
 		}
 	}
 	w.WriteString(strings.Join(vals, ","))

@@ -16,6 +16,7 @@ export interface TreeNodeData {
   incr_instr_lines: number;
   incr_cover_lines: number;
   incr_coverage: number;
+  has_increment: boolean;
 }
 
 export const NodeType = {

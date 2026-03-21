@@ -31,7 +31,7 @@ type CoverReport interface {
 	// GetMeta 获取覆盖率报告元数据信息(项目覆盖率概览数据)
 	GetMeta() MetaInfo
 	// FindFile 列出路径为path的目录下子节点的覆盖率数据概览概览列表
-	ListFileStats(path string) ([]tree.TreeNodeData, error)
+	ListFileStats(path string, isIncrement bool) ([]tree.TreeNodeData, error)
 	// 获取文件的行覆盖率数据
 	GetFileCoverLines(filePath string) ([]uint32, error)
 	// ExistFile 判断是否存在路径为path的文件
@@ -133,6 +133,7 @@ func (r *CoverReportImpl) AddFile(path string, lines []int32, diffInfo FileDiffI
 	}
 	if stat.IncrInstrLines > 0 {
 		stat.IncrCoverage = uint32(uint64(stat.IncrCoverLines) * 100 / uint64(stat.IncrInstrLines))
+		stat.HasIncrement = true
 	}
 
 	// 2. 存入数据源获取 PartitionKey
@@ -225,6 +226,7 @@ func (r *CoverReportImpl) UpdateFile(path string, lines []int32, diffInfo FileDi
 	}
 	if stat.IncrInstrLines > 0 {
 		stat.IncrCoverage = uint32(uint64(stat.IncrCoverLines) * 100 / uint64(stat.IncrInstrLines))
+		stat.HasIncrement = true
 	}
 
 	// 2. 存入存储
@@ -250,7 +252,7 @@ func (r *CoverReportImpl) UpdateFile(path string, lines []int32, diffInfo FileDi
 	return nil
 }
 
-func (r *CoverReportImpl) ListFileStats(path string) ([]tree.TreeNodeData, error) {
+func (r *CoverReportImpl) ListFileStats(path string, isIncrement bool) ([]tree.TreeNodeData, error) {
 	node := r.findNode(path)
 	if node == nil {
 		return nil, fmt.Errorf("node not found: %s", path)
@@ -259,13 +261,21 @@ func (r *CoverReportImpl) ListFileStats(path string) ([]tree.TreeNodeData, error
 	dir, ok := node.(*tree.DirNode)
 	if !ok {
 		// 如果是文件，只返回该文件自身的统计信息
-		return []tree.TreeNodeData{*node.GetStat()}, nil
+		stat := *node.GetStat()
+		if isIncrement && !stat.HasIncrement {
+			return nil, nil
+		}
+		return []tree.TreeNodeData{stat}, nil
 	}
 
 	// 如果是目录，返回该目录下所有一级子节点的统计信息
 	var res []tree.TreeNodeData
 	for child := range dir.Children() {
-		res = append(res, *child.GetStat())
+		stat := *child.GetStat()
+		if isIncrement && !stat.HasIncrement {
+			continue
+		}
+		res = append(res, stat)
 	}
 	return res, nil
 }

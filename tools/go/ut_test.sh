@@ -9,6 +9,7 @@ set -e
 # Usage: log <LEVEL> <MESSAGE>
 # Levels: INFO, SUCCESS, WARN, ERROR, HEADER, EMPTY
 log() {
+    local datetime=$(date '+%Y-%m-%d %H:%M:%S')
     # --- 颜色定义 ---
     local red='\033[0;31m'
     local green='\033[0;32m'
@@ -22,10 +23,10 @@ log() {
     local level=$1
     local msg=$2
     case "$level" in
-        "INFO")    printf "${blue}[INFO]${no_color} %s\n" "$msg" ;;
-        "SUCCESS") printf "${green}[SUCCESS]${no_color} %s\n" "$msg" ;;
-        "WARN")    printf "${yellow}[WARN]${no_color} %s\n" "$msg" ;;
-        "ERROR")   printf "${red}[ERROR]${no_color} %s\n" "$msg" >&2 ;;
+        "INFO")    printf "[${datetime}] ${blue}[INFO]${no_color} %s\n" "$msg" ;;
+        "SUCCESS") printf "[${datetime}] ${green}[SUCCESS]${no_color} %s\n" "$msg" ;;
+        "WARN")    printf "[${datetime}] ${yellow}[WARN]${no_color} %s\n" "$msg" ;;
+        "ERROR")   printf "[${datetime}] ${red}[ERROR]${no_color} %s\n" "$msg" >&2 ;;
         "HEADER")  printf "${purple}========== %s ==========${no_color}\n" "$msg" ;;
         "EMPTY")   printf "\n" ;;
         *)         printf "%s\n" "$msg" ;;

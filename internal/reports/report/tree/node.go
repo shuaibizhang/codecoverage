@@ -57,6 +57,9 @@ func (d *DirNode) Remove(child TreeNode) {
 func (d *DirNode) GetStat() *TreeNodeData {
 	agg := &StatAggregator{}
 	d.Accept(agg)
+	agg.Stat.Name = d.Name()
+	agg.Stat.Path = d.Path()
+	agg.Stat.IsDir = d.IsDir()
 	return &agg.Stat
 }
 
@@ -71,6 +74,9 @@ type FileNode struct {
 }
 
 func NewFileNode(name, fullPath string, stat TreeNodeData) *FileNode {
+	stat.Name = name
+	stat.Path = fullPath
+	stat.IsDir = false
 	return &FileNode{
 		name:     name,
 		fullPath: fullPath,
@@ -83,6 +89,9 @@ func (f *FileNode) Path() string { return f.fullPath }
 func (f *FileNode) IsDir() bool  { return false }
 
 func (f *FileNode) GetStat() *TreeNodeData {
+	f.stat.Name = f.name
+	f.stat.Path = f.fullPath
+	f.stat.IsDir = false
 	return &f.stat
 }
 

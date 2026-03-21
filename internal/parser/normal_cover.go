@@ -23,5 +23,85 @@ type MetaInfo struct {
 // CovNormalInfo 归一化覆盖率信息，屏蔽语言差异
 type CovNormalInfo struct {
 	MetaInfo
-	CoverageData map[string]*CoverData `json:"coverage_data"` // 覆盖率数据
+	CoverageData CoverDataMap `json:"coverage_data"` // 覆盖率数据
+}
+
+type CoverDataMap map[string]*CoverData
+
+func GetIncrChangeCoverMap(oldData, newData CoverDataMap) (CoverDataMap, uint, error) {
+	// 简单的增量计算逻辑，实际可能更复杂
+	incrData := make(CoverDataMap)
+	var totalIncr uint
+	for file, newCov := range newData {
+		oldCov, ok := oldData[file]
+		if !ok {
+			incrData[file] = newCov
+			totalIncr += newCov.CoverLines
+			continue
+		}
+		// 比较逻辑... 这里先简化
+		if newCov.CoverLines > oldCov.CoverLines {
+			incrData[file] = newCov
+			totalIncr += (newCov.CoverLines - oldCov.CoverLines)
+		}
+	}
+	return incrData, totalIncr, nil
+}
+
+func CompressCommonPrefix(data CoverDataMap) (string, CoverDataMap) {
+	if len(data) == 0 {
+		return "", data
+	}
+
+	// 找出所有文件路径的公共前缀
+	var commonPrefix string
+	first := true
+	for path := range data {
+		if first {
+			commonPrefix = path
+			first = false
+			continue
+		}
+
+		// 找到 commonPrefix 和 path 的公共前缀
+		i := 0
+		for i < len(commonPrefix) && i < len(path) && commonPrefix[i] == path[i] {
+			i++
+		}
+		commonPrefix = commonPrefix[:i]
+		if commonPrefix == "" {
+			break
+		}
+	}
+
+	// 如果没有公共前缀，直接返回
+	if commonPrefix == "" {
+		return "", data
+	}
+
+	// 如果公共前缀不是以 / 结尾，截取到最后一个 /
+	lastSlash := -1
+	for i, c := range commonPrefix {
+		if c == '/' {
+			lastSlash = i
+		}
+	}
+	if lastSlash != -1 {
+		commonPrefix = commonPrefix[:lastSlash+1]
+	} else {
+		commonPrefix = ""
+	}
+
+	if commonPrefix == "" {
+		return "", data
+	}
+
+	// 压缩数据
+	newData := make(CoverDataMap)
+	for path, cov := range data {
+		newPath := path[len(commonPrefix):]
+		newData[newPath] = cov
+	}
+
+	return commonPrefix, newData
 }

@@ -96,17 +96,26 @@ func (s *unitTestService) UploadUnittestReport(ctx context.Context, task *store.
 		// 获取 diff 数据 .diff (可选)
 		var gitDiffMap *diff.GitDiffMap
 		diffPath := pk.RealPathPrefix() + ".diff"
+		log.Printf("Checking for diff file in OSS: %s", diffPath)
 		diffReader, err := s.ossCli.GetObject(ctx, s.bucketName, diffPath)
 		if err == nil {
 			defer diffReader.Close()
 			diffData, err := io.ReadAll(diffReader)
 			if err == nil {
+				log.Printf("Read diff file from OSS: %d bytes", len(diffData))
 				gitModel := diff.NewGitModel()
 				gitDiff, err := gitModel.ParserGitDiffFile(string(diffData))
 				if err == nil {
 					gitDiffMap = gitDiff.CovertToMap()
+					log.Printf("Parsed diff file into %d files", len(gitDiffMap.DiffFileMap))
+				} else {
+					log.Printf("Failed to parse diff file: %v", err)
 				}
+			} else {
+				log.Printf("Failed to read diff data from OSS: %v", err)
 			}
+		} else {
+			log.Printf("Diff file not found in OSS or error: %v (path: %s)", err, diffPath)
 		}
 
 		// 2、生成对应的coverReport
@@ -170,15 +179,15 @@ func (s *unitTestService) UploadUnittestReport(ctx context.Context, task *store.
 
 			var fileDiffInfo report.FileDiffInfo
 			if gitDiffMap != nil {
-				// 注意：gitDiffMap 中的 path 可能是原始 path，也可能是清理后的 path，
-				// 这里假设 gitDiffMap 对应的是原始上报的 path
-				if dFile, ok := gitDiffMap.DiffFileMap[path]; ok {
-					fileDiffInfo.AddLines = uint32(len(dFile.Hunks))
-					for _, hunk := range dFile.Hunks {
-						for _, line := range hunk.NewFileLines {
-							fileDiffInfo.AddedLines = append(fileDiffInfo.AddedLines, uint32(line))
-						}
+				// 注意：gitDiffMap 中的 path 是相对于仓库根目录的路径
+				// displayPath 也是清理后的相对路径，两者应该可以匹配
+				if dFile, ok := gitDiffMap.DiffFileMap[displayPath]; ok {
+					fileDiffInfo.AddLines = dFile.GetAddLinesCount()
+					fileDiffInfo.DeleteLines = dFile.GetDeleteLinesCount()
+					for _, line := range dFile.GetFileChangeLines() {
+						fileDiffInfo.AddedLines = append(fileDiffInfo.AddedLines, uint32(line))
 					}
+					log.Printf("Matched diff for file: %s, added lines: %d, deleted lines: %d", displayPath, fileDiffInfo.AddLines, fileDiffInfo.DeleteLines)
 				}
 			}
 
