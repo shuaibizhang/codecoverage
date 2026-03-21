@@ -39,7 +39,7 @@ log() {
 function install_goc() {
     # 安装goc
     log "INFO" "install goc..."
-    go install github.com/shuaibizhang/goc@bingozhang
+    go install github.com/shuaibizhang/goc@v1.0.0
 
     # 将GOBIN添加到PATH中
     local go_bin = $(go env GOPATH)/bin
