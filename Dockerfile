@@ -4,7 +4,7 @@
 # ARG 的作用域仅限于它被定义的那个阶段。你在第一阶段定义的 SERVICE_TYPE 在进入第二阶段（ FROM alpine ）后就 失效 了。因此，必须在第二阶段重新声明一次 ARG SERVICE_TYPE ，才能拿到构建时传入的值。
 
 # 构建阶段
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # 构建参数，默认为 server
 ARG SERVICE_TYPE=server
