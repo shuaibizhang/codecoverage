@@ -1,4 +1,4 @@
-name: CI/CD Workflow
+name: codecoverage 自动构建镜像打包部署
 
 on:
   push:
@@ -47,8 +47,10 @@ jobs:
 
   # --- 手动构建 cover-agent 任务 ---
   build-agent:
-    # 仅在手动触发且 build_agent 输入为 true 时执行
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_agent == 'true'
+    # 允许所有触发方式，但在 UI 中需要通过环境审批来手动启动 （触发工作流可以是任意方式，执行job通过环境审批启动）
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # setting -> Code and automation -> Environments -> 添加manual-agent-build
+    environment: manual-agent-build
     runs-on: ubuntu-latest
     steps:
       - name: 切换到代码
