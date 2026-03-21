@@ -69,18 +69,22 @@ jobs:
       - name: 切换代码
         uses: actions/checkout@v4
 
-      - name: 创建部署路径
-        run: mkdir -p /home/ubuntu/workspace/services/codecoverage
-
-      - name: 拷贝 docker-compose.yml 到服务器
-        uses: appleboy/scp-action@v0.1.7
+      - name: 在服务器创建部署路径
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "/home/ubuntu/workspace/services/codecoverage"
-          debug: true  # 增加调试输出
+          script: mkdir -p /home/ubuntu/workspace/services/codecoverage
+
+      - name: 设置 SSH 密钥
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: 拷贝 docker-compose.yml 到服务器 (使用 rsync)
+        run: |
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no" ./docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/ubuntu/workspace/services/codecoverage/
 
       - name: 部署到服务器 通过 SSH
         uses: appleboy/ssh-action@v1.0.3

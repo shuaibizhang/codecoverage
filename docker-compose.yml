@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   cover-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: zhangdashuaibi/cover-server:latest
     container_name: codecoverage-server
     environment:
       - SERVICE_TYPE=server
@@ -15,9 +13,7 @@ services:
     restart: always
 
   cover-agent:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: zhangdashuaibi/cover-agent:latest
     container_name: codecoverage-agent
     environment:
       - SERVICE_TYPE=agent
