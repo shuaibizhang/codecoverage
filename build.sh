@@ -42,7 +42,7 @@ function install_goc() {
     go install github.com/shuaibizhang/goc@v1.0.0
 
     # 将GOBIN添加到PATH中
-    local go_bin = $(go env GOPATH)/bin
+    local go_bin="$(go env GOPATH)/bin"
     export PATH=$PATH:$go_bin
 
     # 验证安装
