@@ -109,16 +109,16 @@ case "$1" in
             install_goc
         fi
         build_server
-        make_output_common
+        make_output
         ;;
     agent)
         build_agent
-        make_output_common
+        make_output
         ;;
     all|*)
         clean
         build_server
         build_agent
-        make_output_common
+        make_output
         ;;
 esac
