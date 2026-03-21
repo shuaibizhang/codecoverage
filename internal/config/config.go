@@ -7,7 +7,6 @@ import (
 	"github.com/shuaibizhang/codecoverage/internal/config/apollo"
 	"github.com/shuaibizhang/codecoverage/internal/oss"
 	"github.com/shuaibizhang/codecoverage/store/db"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -42,15 +41,15 @@ func Init(configPath string) error {
 
 	// 2. 绑定命令行参数 (最高优先级)
 	// 使用 pflag 绑定，支持 --mysql.host 这种层级参数
-	pflag.String("mysql.host", "", "MySQL host")
-	pflag.String("apollo.addr", "", "Apollo server address")
-	pflag.String("apollo.app_id", "", "Apollo app id")
-	pflag.String("apollo.env", "", "Apollo environment")
-	pflag.String("apollo.cluster", "default", "Apollo cluster")
-	pflag.String("apollo.namespace", "application", "Apollo namespace")
-	pflag.Bool("apollo.enabled", false, "Enable Apollo config")
-	pflag.Parse()
-	v.BindPFlags(pflag.CommandLine)
+	// pflag.String("mysql.host", "", "MySQL host")
+	// pflag.String("apollo.addr", "", "Apollo server address")
+	// pflag.String("apollo.app_id", "", "Apollo app id")
+	// pflag.String("apollo.env", "", "Apollo environment")
+	// pflag.String("apollo.cluster", "default", "Apollo cluster")
+	// pflag.String("apollo.namespace", "application", "Apollo namespace")
+	// pflag.Bool("apollo.enabled", false, "Enable Apollo config")
+	// pflag.Parse()
+	// v.BindPFlags(pflag.CommandLine)
 
 	// 3. 加载本地配置文件 (基础配置)
 	if configPath != "" {

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -ex
+set -e
+# set -x
 
 APP_SERVER=cover-server
 APP_AGENT=cover-agent
@@ -38,29 +39,33 @@ log() {
 # 安装goc 
 function install_goc() {
     # 安装goc
-    log "INFO" "install goc..."
-    go install github.com/shuaibizhang/goc@v1.0.0
+    log "INFO" "安装goc中..."
+    go install github.com/shuaibizhang/goc@v1.0.1
 
     # 将GOBIN添加到PATH中
     local go_bin="$(go env GOPATH)/bin"
     export PATH=$PATH:$go_bin
 
     # 验证安装
-    log "SUCCESS" "goc installed successfully,goc version: $(goc version)"
+    log "SUCCESS" "goc安装成功，版本: $(goc version)"
 }
 
 # 准备输出目录
 function prepare_output() {
+    log "INFO" "准备输出目录: $OUTPUT"
     if [ ! -d $OUTPUT ]; then
         mkdir -p $OUTPUT/bin
         mkdir -p $OUTPUT/conf
     fi
+    log "SUCCESS" "输出目录准备完成: $OUTPUT"
 }
 
 # 构建 cover-server
 function build_server() {
     prepare_output
+    log "INFO" "开始构建 cover-server...，插桩编译参数COV=$COV"
     make $APP_SERVER
+    log "SUCCESS" "cover-server构建完成: $OUTPUT/bin/$APP_SERVER"
     # 根据 Makefile，二进制可能在根目录或 cmd 目录下
     if [ -f $APP_SERVER ]; then
         cp $APP_SERVER $OUTPUT/bin/
@@ -72,7 +77,10 @@ function build_server() {
 # 构建 cover-agent
 function build_agent() {
     prepare_output
+    log "INFO" "开始构建 cover-agent..."
     make $APP_AGENT
+    log "SUCCESS" "cover-agent构建完成: $OUTPUT/bin/$APP_AGENT"
+    # 根据 Makefile，二进制可能在根目录或 cmd 目录下
     if [ -f $APP_AGENT ]; then
         cp $APP_AGENT $OUTPUT/bin/
     elif [ -f cmd/$APP_AGENT/$APP_AGENT ]; then

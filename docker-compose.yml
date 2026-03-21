@@ -7,7 +7,7 @@ services:
     environment:
       - SERVICE_TYPE=server
     ports:
-      - "8080:8080"
+      - "18080:8080" # 指定暴露cover-server的18080作为cover-server访问
     volumes:
       - ./conf:/app/conf
     restart: always
@@ -17,7 +17,7 @@ services:
     container_name: codecoverage-agent
     environment:
       - SERVICE_TYPE=agent
-      - COVER_ADDR=127.0.0.1:8080 # 假设待测服务也在同一网络命名空间
+      - COVER_ADDR=127.0.0.1:7778 # 插桩的覆盖率代理服务器的地址
     network_mode: "service:cover-server"
     depends_on:
       - cover-server

@@ -1,16 +1,15 @@
 GO = go
-GOC = goc 
+GOC = goc
 
 # 链接时添加构建信息
 VERSION = 1.0.0
 BUILD_TIME = $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 BUILDINFO_PKG = github.com/shuaibizhang/codecoverage/internal/buildinfo
-LDFLAGS = -ldflags "-X $(BUILDINFO_PKG).Version=$(VERSION) \
-					-X $(BUILDINFO_PKG).BuildTime=$(BUILD_TIME)"
+LDFLAGS = -ldflags '-X $(BUILDINFO_PKG).Version=$(VERSION) -X $(BUILDINFO_PKG).BuildTime=$(BUILD_TIME)'
 # 添加gc参数					
 GCFLAGS = -x 
 ifeq ($(COV),yes)
-	GCFLAGS += -gcflags="all=-N -l"
+	GCFLAGS += -gcflags='all=-N -l'
 endif
 
 .PHONY: all cover-server cover-agent cover-cli run-backend run-frontend test-report minio-up minio-down help
@@ -20,9 +19,9 @@ all: cover-server cover-agent cover-cli
 
 cover-server:
 ifeq ($(COV),yes)
-	$(GO) build $(GCFLAGS) -o $@ ./cmd/$@
+	cd ./cmd/$@ && $(GOC) build --center=http://127.0.0.1:2039 --agentport=:7778 --buildflags="$(GCFLAGS) $(LDFLAGS)" -o $@ 
 else
-	cd ./cmd/$@ && $(GOC) build --center=http://127.0.0.1:2039 --buildflags="$(GCFLAGS) $(LDFLAGS)" -o $@ 
+	$(GO) build $(GCFLAGS) -o $@ ./cmd/$@
 endif
 
 cover-agent:
@@ -68,6 +67,8 @@ test-report:
 	@echo "Running coverage flow test..."
 	go test -v uint_cover_test.go
 
+# 端口转发，18080 端口映射到本地 8080 端口 （服务未部署时使用）
+# 服务部署后，无需使用
 remote_port_forward:
 	@echo "Stopping existing SSH tunnels..."
 	-pkill -f "ssh -fCNR 0.0.0.0:18080"

@@ -24,7 +24,7 @@ import (
 	"github.com/shuaibizhang/codecoverage/store/db"
 )
 
-var confPath = flag.String("conf", "conf/dev.toml", "")
+var confPath = flag.String("conf", "conf/server-dev.toml", "")
 
 func main() {
 	log.SetOutput(os.Stdout)
