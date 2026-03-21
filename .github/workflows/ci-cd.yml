@@ -69,6 +69,9 @@ jobs:
       - name: 切换代码
         uses: actions/checkout@v4
 
+      - name: 创建部署路径
+        run: mkdir -p /home/ubuntu/workspace/services/codecoverage
+
       - name: 拷贝 docker-compose.yml 到服务器
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -76,7 +79,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "docker-compose.yml"
-          target: "/app/codecoverage"
+          target: "/home/ubuntu/workspace/services/codecoverage"
           debug: true  # 增加调试输出
 
       - name: 部署到服务器 通过 SSH
@@ -86,7 +89,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /app/codecoverage
+            cd /home/ubuntu/workspace/services/codecoverage
             # 登录 Docker Hub 以拉取私有镜像（如果需要）
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             # 拉取最新镜像
