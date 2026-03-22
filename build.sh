@@ -53,14 +53,24 @@ function install_goc() {
 
 
 # goc构建时注入四元组信息到template
-export MODULE=""
-export BRANCH=""
-export COMMIT=""
-export BASE_COMMIT=""
+export MODULE="${MODULE:-}"
+export BRANCH="${BRANCH:-}"
+export COMMIT="${COMMIT:-}"
+export BASE_COMMIT="${BASE_COMMIT:-}"
 set_module_info() {
     log "HEADER" "环境检测"
     log "INFO" "正在检测环境和分支信息..."
     
+    # 如果已经通过环境变量传入了元数据（例如在 Docker 构建中），则直接使用
+    if [ -n "$MODULE" ] && [ -n "$BRANCH" ] && [ -n "$COMMIT" ]; then
+        log "INFO" "检测到已传入的环境变量，跳过自动探测。"
+        log "INFO" "仓库模块: $MODULE"
+        log "INFO" "当前分支: $BRANCH"
+        log "INFO" "当前提交: $COMMIT"
+        log "INFO" "基准提交: ${BASE_COMMIT:-'未找到'}"
+        return
+    fi
+
     local target_base_branch=${1:-main}
 
     if [ -n "$GITHUB_ACTIONS" ]; then
@@ -157,7 +167,6 @@ set_module_info() {
     log "INFO" "当前提交: $COMMIT"
     log "INFO" "基准提交: ${BASE_COMMIT:-'未找到'}"
 }
-
 
 # 准备输出目录
 function prepare_output() {

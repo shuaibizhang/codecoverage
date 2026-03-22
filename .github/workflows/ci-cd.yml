@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: 切换到代码
         uses: actions/checkout@v4
+        with: # 拉取完整历史 ：将 fetch-depth 设置为 0，计算mergebase使用。
+          fetch-depth: 0
 
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -34,6 +36,37 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: 准备构建服务元数据（模块，分支，提交，基准提交）
+        id: meta
+        run: |
+          # 仓库模块名
+          echo "module=${{ github.repository }}" >> $GITHUB_OUTPUT
+          
+          # 当前分支
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "branch=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+          else
+            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+          
+          # 当前提交 ID
+          echo "commit=${{ github.sha }}" >> $GITHUB_OUTPUT
+          
+          # 基准提交 ID (Base Commit)
+          BASE_COMMIT=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
+          else
+            # 尝试自动探测默认分支并计算 merge-base
+            DEFAULT_BRANCH=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" ${{ github.event.repository.url }} | jq -r .default_branch)
+            if [ "$DEFAULT_BRANCH" = "null" ] || [ -z "$DEFAULT_BRANCH" ]; then
+              DEFAULT_BRANCH="main"
+            fi
+            git fetch origin $DEFAULT_BRANCH --depth=1 || true
+            BASE_COMMIT=$(git merge-base origin/$DEFAULT_BRANCH ${{ github.sha }} 2>/dev/null || echo "")
+          fi
+          echo "base_commit=$BASE_COMMIT" >> $GITHUB_OUTPUT
+
       - name: 构建并推送 cover-server 镜像
         uses: docker/build-push-action@v5
         with:
@@ -41,9 +74,15 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ env.DOCKER_HUB_REPO_SERVER }}:latest
+          # 引用构建元数据，服务四元组
           build-args: |
             SERVICE_TYPE=server
             COV=yes
+            MODULE=${{ steps.meta.outputs.module }}
+            BRANCH=${{ steps.meta.outputs.branch }}
+            COMMIT=${{ steps.meta.outputs.commit }}
+            BASE_COMMIT=${{ steps.meta.outputs.base_commit }}
+            GITHUB_ACTIONS=true
 
   # --- 手动构建 cover-agent 任务 ---
   build-agent:
@@ -55,6 +94,8 @@ jobs:
     steps:
       - name: 切换到代码
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3

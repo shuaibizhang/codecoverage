@@ -11,6 +11,13 @@ ARG SERVICE_TYPE=server
 # 如果需要开启覆盖率构建，可以传入 COV=yes
 ARG COV=no
 
+# 注入构建元数据
+ARG MODULE=""
+ARG BRANCH=""
+ARG COMMIT=""
+ARG BASE_COMMIT=""
+ARG GITHUB_ACTIONS=""
+
 # 设置工作目录
 WORKDIR /app
 
@@ -21,7 +28,12 @@ RUN apk add --no-cache make bash git
 COPY . .
 
 # 执行构建脚本，根据 SERVICE_TYPE 构建对应的服务
-RUN COV=${COV} ./build.sh ${SERVICE_TYPE}
+RUN MODULE=${MODULE} \
+    BRANCH=${BRANCH} \
+    COMMIT=${COMMIT} \
+    BASE_COMMIT=${BASE_COMMIT} \
+    GITHUB_ACTIONS=${GITHUB_ACTIONS} \
+    COV=${COV} ./build.sh ${SERVICE_TYPE}
 
 # 运行阶段
 FROM alpine:latest

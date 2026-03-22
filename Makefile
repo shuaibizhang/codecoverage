@@ -12,10 +12,19 @@ ifeq ($(COV),yes)
 	GCFLAGS += -gcflags='all=-N -l'
 endif
 
-.PHONY: all cover-server cover-agent cover-cli run-backend run-frontend test-report minio-up minio-down help
+.PHONY: all cover-server cover-agent cover-cli run-backend run-frontend test-report minio-up minio-down help proto
 
 # ================== 构建命令 ===================
 all: cover-server cover-agent cover-cli
+
+# ================== 代码生成 ===================
+proto:
+	@echo "Generating proto code..."
+	protoc -I. -I./third_party \
+		--go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		--grpc-gateway_out=. --grpc-gateway_opt=paths=source_relative \
+		idl/cover-agent/cover-agent.proto
 
 cover-server:
 ifeq ($(COV),yes)
@@ -36,6 +45,7 @@ gen_output:
 # ================= 其他测试命令 ====================
 help:
 	@echo "Available commands:"
+	@echo "  make proto         - Regenerate code from proto files"
 	@echo "  make run-backend   - Start the Go backend server"
 	@echo "  make run-frontend  - Start the Vite frontend development server"
 	@echo "  make test-report   - Run the coverage generation test (uint_cover_test.go)"

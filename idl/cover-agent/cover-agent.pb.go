@@ -238,9 +238,9 @@ const file_idl_cover_agent_cover_agent_proto_rawDesc = "" +
 	"build_info\x18\x03 \x01(\v2\x15.coveragent.BuildInfoR\tbuildInfo\"C\n" +
 	"\x13RegisterSUTResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\x88\x01\n" +
-	"\x0fRegisterService\x12u\n" +
-	"\vRegisterSUT\x12\x1e.coveragent.RegisterSUTRequest\x1a\x1f.coveragent.RegisterSUTResponse\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/agent/api/v1/sut/registerBAZ?github.com/shuaibizhang/codecoverage/idl/cover-agent;coveragentb\x06proto3"
+	"\amessage\x18\x02 \x01(\tR\amessage2\x80\x01\n" +
+	"\x0fRegisterService\x12m\n" +
+	"\vRegisterSUT\x12\x1e.coveragent.RegisterSUTRequest\x1a\x1f.coveragent.RegisterSUTResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/v1/cover/registerBAZ?github.com/shuaibizhang/codecoverage/idl/cover-agent;coveragentb\x06proto3"
 
 var (
 	file_idl_cover_agent_cover_agent_proto_rawDescOnce sync.Once

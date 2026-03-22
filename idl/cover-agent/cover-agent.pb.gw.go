@@ -74,7 +74,7 @@ func RegisterRegisterServiceHandlerServer(ctx context.Context, mux *runtime.Serv
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/coveragent.RegisterService/RegisterSUT", runtime.WithHTTPPathPattern("/agent/api/v1/sut/register"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/coveragent.RegisterService/RegisterSUT", runtime.WithHTTPPathPattern("/v1/cover/register"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -132,7 +132,7 @@ func RegisterRegisterServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/coveragent.RegisterService/RegisterSUT", runtime.WithHTTPPathPattern("/agent/api/v1/sut/register"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/coveragent.RegisterService/RegisterSUT", runtime.WithHTTPPathPattern("/v1/cover/register"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -149,7 +149,7 @@ func RegisterRegisterServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 }
 
 var (
-	pattern_RegisterService_RegisterSUT_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 2, 4}, []string{"agent", "api", "v1", "sut", "register"}, ""))
+	pattern_RegisterService_RegisterSUT_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "cover", "register"}, ""))
 )
 
 var (

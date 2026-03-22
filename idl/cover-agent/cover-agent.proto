@@ -29,7 +29,7 @@ message RegisterSUTResponse {
 service RegisterService {
     rpc RegisterSUT(RegisterSUTRequest) returns (RegisterSUTResponse) {
         option (google.api.http) = {
-            post: "/agent/api/v1/sut/register"
+            post: "/v1/cover/register"
             body: "*"
         };
     }
