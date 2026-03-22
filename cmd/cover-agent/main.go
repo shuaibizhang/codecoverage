@@ -54,7 +54,7 @@ func main() {
 
 	addr := config.GetConfig().AgentConfig.Addr
 	if addr == "" {
-		addr = "0.0.0.0:8180"
+		addr = "0.0.0.0:2039"
 	}
 
 	agent := agent.InitializeAgent(addr)
