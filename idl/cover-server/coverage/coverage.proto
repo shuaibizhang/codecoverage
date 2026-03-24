@@ -43,6 +43,14 @@ service CoverageService {
       body: "*"
     };
   }
+
+  // 上报系统测试任务元数据
+  rpc UploadSystestCoverData(UploadSystestCoverDataRequest) returns (UploadSystestCoverDataResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/systest/upload"
+      body: "*"
+    };
+  }
 }
 
 message GetMetadataListRequest {
@@ -67,6 +75,33 @@ message UploadUnittestReportRequest {
 }
 
 message UploadUnittestReportResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message CoverData {
+  uint32 total_lines = 1;
+  uint32 cover_lines = 2;
+  uint32 instr_lines = 3;
+  repeated int32 cover_line_data = 4;
+}
+
+message UploadSystestCoverDataRequest {
+  string language = 1;
+  string module = 2;
+  string branch = 3;
+  string commit = 4;
+  string base_commit = 5;
+  string host_ip = 6;
+
+  string normal_cover_data_partition_key = 7;
+  string report_partition_key = 8;
+
+  map<string, CoverData> cover_data = 9;
+  string created_time = 10;
+}
+
+message UploadSystestCoverDataResponse {
   bool success = 1;
   string message = 2;
 }

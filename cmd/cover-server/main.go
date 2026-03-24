@@ -9,6 +9,10 @@ import (
 
 	cp "github.com/shuaibizhang/codecoverage/internal/code_provider"
 	"github.com/shuaibizhang/codecoverage/internal/config"
+	diffProvider "github.com/shuaibizhang/codecoverage/internal/diff/provider"
+	diffService "github.com/shuaibizhang/codecoverage/internal/diff/service"
+	diffStore "github.com/shuaibizhang/codecoverage/internal/diff/store"
+	githubCli "github.com/shuaibizhang/codecoverage/internal/github"
 	"github.com/shuaibizhang/codecoverage/internal/oss"
 	"github.com/shuaibizhang/codecoverage/internal/reports/manager"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report"
@@ -18,8 +22,11 @@ import (
 	"github.com/shuaibizhang/codecoverage/internal/server"
 	"github.com/shuaibizhang/codecoverage/internal/server/controller"
 	"github.com/shuaibizhang/codecoverage/internal/service"
+	stservice "github.com/shuaibizhang/codecoverage/internal/systest/service"
+	ststore "github.com/shuaibizhang/codecoverage/internal/systest/store"
 	utservice "github.com/shuaibizhang/codecoverage/internal/unittest/service"
 	utstore "github.com/shuaibizhang/codecoverage/internal/unittest/store"
+	"github.com/shuaibizhang/codecoverage/logger"
 	"github.com/shuaibizhang/codecoverage/store"
 	"github.com/shuaibizhang/codecoverage/store/db"
 )
@@ -27,8 +34,11 @@ import (
 var confPath = flag.String("conf", "conf/server-dev.toml", "")
 
 func main() {
-	log.SetOutput(os.Stdout)
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// 初始化全局 Logger (基于环境变量 LOG_OUTPUT 和 LOG_FILE_PATH)
+	logger.SetDefault(logger.NewZapLogger(logger.NewProductionConfig()))
+	// 重定向标准库 log 的输出到我们的 logger
+	logger.RedirectStdLog()
+
 	log.Printf("--------------------------------------------------")
 	log.Printf("Cover Server is starting...")
 	log.Printf("PID: %d", os.Getpid())
@@ -37,9 +47,9 @@ func main() {
 	if confPath == nil || *confPath == "" {
 		panic("conf path err")
 	}
-
+	ctx := context.Background()
 	// 0. 初始化配置
-	if err := config.Init(*confPath); err != nil {
+	if err := config.Init(ctx, *confPath); err != nil {
 		log.Printf("Warning: failed to init config, using default values: %v", err)
 	}
 	cfg := config.GetConfig()
@@ -52,7 +62,7 @@ func main() {
 	}
 
 	// 1.1.1 确保存储桶存在
-	if err := ossCli.MakeBucket(context.Background(), cfg.OssConfig.BucketName); err != nil {
+	if err := ossCli.MakeBucket(ctx, cfg.OssConfig.BucketName); err != nil {
 		log.Printf("Warning: failed to make bucket %s: %v", cfg.OssConfig.BucketName, err)
 	}
 
@@ -81,6 +91,7 @@ func main() {
 	// 1.3 初始化数据库存储
 	var dbStore *store.Store
 	var unittestStore utstore.UnitTestStore
+	var systestStore ststore.SystestStore
 	if cfg.DbConfig.Host != "" {
 		database, err := db.Open(&cfg.DbConfig)
 		if err != nil {
@@ -88,36 +99,75 @@ func main() {
 		} else {
 			dbStore = store.NewStore(database)
 			unittestStore = utstore.NewUnitTestStore(dbStore)
+			systestStore = ststore.NewSystestStore(dbStore)
 			log.Printf("Database initialized successfully")
 		}
 	}
 
-	// 1.4 初始化 CodeProvider
-	var codeProv cp.CodeProvider
+	// 1.4 初始化 GitHub 客户端 (如果配置了 token)
+	var ghCli githubCli.Client
 	if cfg.GithubConfig.Token != "" {
+		ghCli = githubCli.NewClient(cfg.GithubConfig.Token)
+		log.Printf("GitHub client initialized successfully")
+	}
+
+	// 1.5 初始化 CodeProvider
+	var codeProv cp.CodeProvider
+	if ghCli != nil {
 		log.Printf("Using GitHubCodeProvider with owner: %s", cfg.GithubConfig.Owner)
-		codeProv = cp.NewGithubCodeProvider(cfg.GithubConfig.Token, cfg.GithubConfig.Owner)
+		codeProv = cp.NewGithubCodeProvider(ghCli, cfg.GithubConfig.Owner)
 	} else {
 		log.Printf("Using LocalCodeProvider")
 		codeProv = cp.NewLocalCodeProvider("")
 	}
 
-	// 1.5 初始化 Service
-	covSvc := service.NewCoverageService(mgr, codeProv, unittestStore)
+	// 1.6 初始化 DiffService
+	var diffSvc diffService.Service
+	if dbStore != nil {
+		dStore := diffStore.NewDiffStore(dbStore)
+		ossProv := diffProvider.NewOSSDiffProvider(ossCli, dStore, cfg.OssConfig.BucketName)
+
+		var baseProv diffProvider.DiffProvider
+		if ghCli != nil {
+			log.Printf("Using GithubDiffProvider with owner: %s", cfg.GithubConfig.Owner)
+			baseProv = diffProvider.NewGithubDiffProvider(ghCli, cfg.GithubConfig.Owner, ossCli, dStore, cfg.OssConfig.BucketName)
+		} else {
+			log.Printf("Using LocalDiffProvider as GitHub token is missing")
+			baseProv = diffProvider.NewLocalDiffProvider("")
+		}
+
+		decoratorProv := diffProvider.NewCacheDiffProvider(ossProv, baseProv)
+		diffSvc = diffService.NewDiffService(decoratorProv)
+		log.Printf("DiffService initialized successfully")
+	}
+
+	// 1.6 初始化 Service
+	covSvc := service.NewCoverageService(mgr, codeProv, unittestStore, systestStore)
 	var unittestSvc utservice.UnitTestService
 	if unittestStore != nil {
 		unittestSvc = utservice.NewUnitTestService(unittestStore, ossCli, mgr, cfg.OssConfig.BucketName)
 	}
+	var systestSvc stservice.SystestService
+	if systestStore != nil {
+		systestSvc = stservice.NewSystestService(systestStore, ossCli, mgr, diffSvc, cfg.OssConfig.BucketName)
+	}
+	regSvc := service.NewRegisterService()
 
 	covCtrl := controller.NewCoverageController(covSvc)
 	var utCtrl *controller.UnitTestController
 	if unittestSvc != nil {
 		utCtrl = controller.NewUnitTestController(unittestSvc)
 	}
-	ctrl := controller.NewController(covCtrl, utCtrl)
+	var stCtrl *controller.SystestController
+	if systestSvc != nil {
+		stCtrl = controller.NewSystestController(systestSvc)
+	}
+	regCtrl := controller.NewRegisterController(regSvc)
+	ctrl := controller.NewController(covCtrl, utCtrl, stCtrl, regCtrl)
 
 	// 2. 启动服务器
 	srv := server.NewServer(":9090", ":8080", ctrl)
+	defer logger.Default().Sync()
 	if err := srv.Run(); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}

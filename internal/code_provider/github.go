@@ -8,16 +8,17 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v60/github"
+	githubCli "github.com/shuaibizhang/codecoverage/internal/github"
 )
 
 type githubCodeProvider struct {
-	client *github.Client
+	client githubCli.Client
 	owner  string
 }
 
-func NewGithubCodeProvider(token, owner string) CodeProvider {
+func NewGithubCodeProvider(client githubCli.Client, owner string) CodeProvider {
 	return &githubCodeProvider{
-		client: github.NewClient(nil).WithAuthToken(token),
+		client: client,
 		owner:  owner,
 	}
 }
@@ -54,7 +55,7 @@ func (p *githubCodeProvider) GetFileContent(ctx context.Context, repo, commit, p
 	}
 
 	// 3. 获取文件内容
-	fileContent, _, resp, err := p.client.Repositories.GetContents(ctx, ownerName, repoName, path, opts)
+	fileContent, _, resp, err := p.client.GetContents(ctx, ownerName, repoName, path, opts)
 	if err != nil {
 		debugRef := "default"
 		if opts.Ref != "" {

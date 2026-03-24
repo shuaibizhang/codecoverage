@@ -15,8 +15,12 @@ services:
       - OSS_SECRET_KEY=password123
       - OSS_BUCKET=coverage-reports
       - OSS_SECURE=false
+      - LOG_OUTPUT=both
+      - LOG_FILE_PATH=/app/logs/cover-server.log
     ports:
       - "18080:8080"
+    volumes:
+      - ./logs/server:/app/logs
     networks:
       - proxy
     restart: always
@@ -27,7 +31,11 @@ services:
     environment:
       - SERVICE_TYPE=agent
       - COVER_ADDR=127.0.0.1:7778
+      - LOG_OUTPUT=both
+      - LOG_FILE_PATH=/app/logs/cover-agent.log
     network_mode: "service:cover-server"
+    volumes:
+      - ./logs/agent:/app/logs
     depends_on:
       - cover-server
     restart: always

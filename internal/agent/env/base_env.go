@@ -7,23 +7,32 @@ import (
 	"os"
 	"time"
 
-	"github.com/shuaibizhang/codecoverage/idl/cover-server/agent"
+	"github.com/shuaibizhang/codecoverage/idl/cover-server/register"
+	"github.com/shuaibizhang/codecoverage/internal/agent/controller"
 	"github.com/shuaibizhang/codecoverage/internal/agent/cover/openapi"
 	"github.com/shuaibizhang/codecoverage/internal/agent/sut"
 	"github.com/shuaibizhang/codecoverage/internal/oss"
+	"github.com/shuaibizhang/codecoverage/logger"
 )
+
+const TagEnv = "_env"
 
 type baseEnv struct {
 	// 对象存储配置
 	ossConfig *oss.Config
 	coverApi  openapi.CoverAPI
 	sutSvc    sut.ISUTService
+	cronCtrl  *controller.CronController
+	logger    logger.Logger
 }
 
-func NewBaseEnv(coverApi openapi.CoverAPI, sutSvc sut.ISUTService) Environment {
+func NewBaseEnv(coverApi openapi.CoverAPI, sutSvc sut.ISUTService, cronCtrl *controller.CronController, logger logger.Logger) Environment {
+	cronCtrl.SetCoverAPI(coverApi)
 	return &baseEnv{
 		coverApi: coverApi,
 		sutSvc:   sutSvc,
+		cronCtrl: cronCtrl,
+		logger:   logger,
 	}
 }
 
@@ -35,17 +44,25 @@ func (e *baseEnv) IsReady(ctx context.Context) bool {
 func (e *baseEnv) Reload(ctx context.Context) error {
 	// 注册agent获取下发密钥
 	if e.ossConfig == nil {
-		if resp, err := e.coverApi.RegistryAgentInfo(ctx, &agent.AgentRegisterRequest{}); err != nil {
-			fmt.Println("RegistryAgentInfo err:", err)
+		if resp, err := e.coverApi.RegistryAgentInfo(ctx, &register.AgentRegisterRequest{}); err != nil {
+			e.logger.Errorf(ctx, TagEnv, "register agent failed! err: %v", err)
 			return nil
 		} else {
 			if resp.OssConfig != nil {
 				e.ossConfig = &oss.Config{
+					Endpoint:        resp.OssConfig.Endpoint,
 					AccessKeyID:     resp.OssConfig.AccessKeyId,
-					SecretAccessKey: resp.OssConfig.Secret,
-					BucketName:      resp.OssConfig.Bucket,
-					Endpoint:        resp.OssConfig.Addr,
+					SecretAccessKey: resp.OssConfig.SecretAccessKey,
 					UseSSL:          resp.OssConfig.UseSsl,
+					BucketName:      resp.OssConfig.BucketName,
+				}
+				// 初始化 OSS 客户端并更新 CronController
+				ossCli, err := oss.NewMinioOSS(*e.ossConfig)
+				if err != nil {
+					e.logger.Errorf(ctx, TagEnv, "new minio oss client failed! err: %v", err)
+				} else {
+					e.cronCtrl.SetOSSClient(ossCli, e.ossConfig.BucketName)
+					e.logger.Infof(ctx, TagEnv, "minio oss client initialized and set to cron controller")
 				}
 			}
 		}
@@ -65,6 +82,7 @@ func (e *baseEnv) Reload(ctx context.Context) error {
 		if coverAddr != "" && dataPath != "" && language != "" && module != "" &&
 			branch != "" && commitID != "" && baseCommitID != "" && buildID != "" {
 			e.sutSvc.AddSUT(
+				ctx,
 				coverAddr,
 				dataPath,
 				language,
@@ -85,15 +103,18 @@ func (e *baseEnv) Init(ctx context.Context) error {
 	// 加载环境
 	err := e.Reload(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("reload env error: %w", err)
 	}
 	if e.IsReady(ctx) {
+		e.logger.Infof(ctx, TagEnv, "environment initialized successful!")
 		return nil
 	}
 
+	// 启动定时器，轮询加载环境
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
+	// 若环境未就绪，轮询加载环境，直到环境就绪或上下文取消
 	for !e.IsReady(ctx) {
 		select {
 		case <-ctx.Done():
@@ -107,5 +128,6 @@ func (e *baseEnv) Init(ctx context.Context) error {
 		}
 	}
 
+	e.logger.Infof(ctx, TagEnv, "environment initialized successful!")
 	return nil
 }

@@ -7,7 +7,7 @@ import { NodeType, type ReportInfo, type TreeNode, type FileCoverage } from './t
 
 const TEST_TYPES = [
   { id: 'unittest', label: '单元测试', icon: ShieldCheck },
-  { id: 'integrate', label: '集成测试', icon: Layers },
+  { id: 'systest', label: '集成测试', icon: Layers },
   { id: 'online', label: '线上测试', icon: Database },
   { id: 'auto', label: '自动化测试', icon: Activity },
 ];

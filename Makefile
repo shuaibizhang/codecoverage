@@ -24,20 +24,26 @@ proto:
 		--go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		--grpc-gateway_out=. --grpc-gateway_opt=paths=source_relative \
-		idl/cover-agent/cover-agent.proto
+		idl/cover-agent/cover-agent.proto \
+		idl/cover-server/register/register.proto \
+		idl/cover-server/coverage/coverage.proto
 
 cover-server:
 ifeq ($(COV),yes)
-	cd ./cmd/$@ && $(GOC) build --center=http://127.0.0.1:2039 --agentport=:7778 --buildflags="$(GCFLAGS) $(LDFLAGS)" -o $@ 
+	cd ./cmd/$@ && PATH=$(PATH):$(shell go env GOPATH)/bin $(GOC) build --center=http://127.0.0.1:2039 --agentport=:7778 --buildflags="$(GCFLAGS) $(LDFLAGS)" -o ../../$@ .
 else
-	$(GO) build $(GCFLAGS) -o $@ ./cmd/$@
+	$(GO) build $(GCFLAGS) $(LDFLAGS) -o $@ ./cmd/$@
 endif
 
 cover-agent:
-	$(GO) build $(GCFLAGS) -o $@ ./cmd/$@
+	$(GO) build $(GCFLAGS) $(LDFLAGS) -o $@ ./cmd/$@
 
 cover-cli:
-	$(GO) build $(GCFLAGS) -o $@ ./cmd/$@
+ifeq ($(COV),yes)
+	cd ./cmd/$@ && PATH=$(PATH):$(shell go env GOPATH)/bin $(GOC) build --center=http://127.0.0.1:2039 --agentport=:7780 --buildflags="$(GCFLAGS) $(LDFLAGS)" -o ../../$@ .
+else
+	$(GO) build $(GCFLAGS) $(LDFLAGS) -o $@ ./cmd/$@
+endif
 
 gen_output:
 	mkdir -p output/{bin,conf}

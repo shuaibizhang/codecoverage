@@ -18,12 +18,22 @@ choose_conf_file() {
 
 # 启动脚本
 function start_server(){
-    exec $APP_SERVER -conf $CONF
+    exec $APP_SERVER -conf $CONF 
 }
 
 function start_agent(){
     # 假设agent启动参数和server类似，或者根据需要调整
-    exec $APP_AGENT -c $CONF
+    exec $APP_AGENT -c $CONF 
+}
+
+function stop_server(){
+    pkill -f "$APP_SERVER -conf" || true
+    echo "Server stopped."
+}
+
+function stop_agent(){
+    pkill -f "$APP_AGENT -c" || true
+    echo "Agent stopped."
 }
 
 main() {
@@ -37,7 +47,26 @@ main() {
                 start_server
             fi
         ;;
-        
+        "stop" )
+            if [[ "x$SERVICE_TYPE" == "xagent" ]]; then
+                stop_agent
+            else
+                stop_server
+            fi
+        ;;
+        "restart" )
+            if [[ "x$SERVICE_TYPE" == "xagent" ]]; then
+                stop_agent
+                sleep 1
+                choose_conf_file
+                start_agent
+            else
+                stop_server
+                sleep 1
+                choose_conf_file
+                start_server
+            fi
+        ;;
         * )
             echo "unknown command"
             exit 1 

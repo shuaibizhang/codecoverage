@@ -15,6 +15,11 @@ import (
 
 const indentSize = 2
 
+var (
+	ErrMetaSectionMissed = errors.New("meta section missed")
+	ErrTreeSectionMissed = errors.New("tree section missed")
+)
+
 type ReportDecoder interface {
 	// 将输入流解码并填充到指定的 CoverReport 中
 	Decode(rep report.CoverReport) error
@@ -64,10 +69,10 @@ func (d *reportDecoder) Decode(rep report.CoverReport) error {
 		return err
 	}
 	if !d.metaParsed {
-		return errors.New("meta section missed")
+		return ErrMetaSectionMissed
 	}
 	if !d.treeParsed {
-		return errors.New("tree section missed")
+		return ErrTreeSectionMissed
 	}
 	return nil
 }

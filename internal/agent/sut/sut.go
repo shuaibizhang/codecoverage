@@ -1,7 +1,15 @@
 package sut
 
+import (
+	"context"
+
+	"github.com/shuaibizhang/codecoverage/logger"
+)
+
+const TagSUTService = "_sut_service"
+
 type ISUTService interface {
-	AddSUT(coverAddr, dataPath, language, module, branch, commitID, baseCommitID, BuildID string)
+	AddSUT(ctx context.Context, coverAddr, dataPath, language, module, branch, commitID, baseCommitID, BuildID string)
 	GetSutMap() map[string]*sut
 	IsReady() bool
 }
@@ -27,18 +35,21 @@ type sutService struct {
 	// key：模块名、待测单元
 	sutMap       map[string]*sut
 	sutObservers []ISutObserver
+	logger       logger.Logger
 }
 
-func NewSUTService(sutObservers []ISutObserver) ISUTService {
+func NewSUTService(sutObservers []ISutObserver, logger logger.Logger) ISUTService {
 	return &sutService{
 		sutMap:       make(map[string]*sut),
 		sutObservers: sutObservers,
+		logger:       logger,
 	}
 }
 
-func (s *sutService) AddSUT(coverAddr, dataPath, language, module, branch, commitID, baseCommitID, BuildID string) {
+func (s *sutService) AddSUT(ctx context.Context, coverAddr, dataPath, language, module, branch, commitID, baseCommitID, BuildID string) {
 	// 如果已存在该模块的sut，直接返回
 	if _, isExisted := s.sutMap[module]; isExisted {
+		s.logger.Infof(ctx, TagSUTService, "sut for module %s already existed, coverAddr: %s, dataPath: %s", module, coverAddr, dataPath)
 		return
 	}
 
@@ -60,6 +71,7 @@ func (s *sutService) AddSUT(coverAddr, dataPath, language, module, branch, commi
 	for _, observer := range s.sutObservers {
 		observer.OnSutAdded(tmpSut)
 	}
+	s.logger.Infof(ctx, TagSUTService, "sut for module %s added, coverAddr: %s, dataPath: %s, language: %s, branch: %s, commitID: %s, baseCommitID: %s, BuildID: %s", module, coverAddr, dataPath, language, branch, commitID, baseCommitID, BuildID)
 }
 
 func (s *sutService) IsReady() bool {

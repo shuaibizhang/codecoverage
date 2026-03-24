@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/shuaibizhang/codecoverage/internal/diff"
@@ -58,6 +59,10 @@ func (m *reportManager) Open(ctx context.Context, pk partitionkey.PartitionKey) 
 	}
 	rep := report.NewCoverReport(st, report.MetaInfo{}, pk)
 	if err := rep.Unmarshal(ctx, pk); err != nil {
+		// 如果是空报告，返回一个空报告对象而不是错误，让前端能看到一个空的覆盖率视图
+		if errors.Is(err, coder.ErrMetaSectionMissed) {
+			return rep, nil
+		}
 		return nil, err
 	}
 	return rep, nil
@@ -70,6 +75,10 @@ func (m *reportManager) OpenWrite(ctx context.Context, pk partitionkey.Partition
 	}
 	rep := report.NewCoverReport(st, report.MetaInfo{}, pk)
 	if err := rep.Unmarshal(ctx, pk); err != nil {
+		// 如果是空报告，或者是文件不存在导致的解析失败，这里我们可以容忍并返回一个新的空报告对象
+		if errors.Is(err, coder.ErrMetaSectionMissed) {
+			return rep, nil
+		}
 		return nil, err
 	}
 	return rep, nil

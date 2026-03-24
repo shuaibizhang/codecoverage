@@ -10,7 +10,8 @@ import (
 	"github.com/shuaibizhang/codecoverage/internal/reports/manager"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/storage/partitionkey"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/tree"
-	"github.com/shuaibizhang/codecoverage/internal/unittest/store"
+	ststore "github.com/shuaibizhang/codecoverage/internal/systest/store"
+	utstore "github.com/shuaibizhang/codecoverage/internal/unittest/store"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -25,14 +26,16 @@ type CoverageService interface {
 type coverageService struct {
 	mgr          manager.ReportManager
 	codeProvider cp.CodeProvider
-	utStore      store.UnitTestStore
+	utStore      utstore.UnitTestStore
+	stStore      ststore.SystestStore
 }
 
-func NewCoverageService(mgr manager.ReportManager, codeProvider cp.CodeProvider, utStore store.UnitTestStore) CoverageService {
+func NewCoverageService(mgr manager.ReportManager, codeProvider cp.CodeProvider, utStore utstore.UnitTestStore, stStore ststore.SystestStore) CoverageService {
 	return &coverageService{
 		mgr:          mgr,
 		codeProvider: codeProvider,
 		utStore:      utStore,
+		stStore:      stStore,
 	}
 }
 
@@ -40,8 +43,30 @@ func (s *coverageService) GetReportInfo(ctx context.Context, req *coverage.GetRe
 	log.Printf("GetReportInfo: type=%s, module=%s, branch=%s, commit=%s", req.Type, req.Module, req.Branch, req.Commit)
 
 	var pk partitionkey.PartitionKey
-	if req.Type == "unittest" {
+	if req.Type == "unittest" || req.Type == "unit_test" || req.Type == "unit" {
+		if s.utStore == nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "unittest store not initialized")
+		}
 		task, err := s.utStore.Query(ctx, req.Module, req.Branch, req.Commit)
+		if err != nil {
+			log.Printf("GetReportInfo: query db failed: %v", err)
+			return nil, status.Errorf(codes.NotFound, "report not found in database: %v", err)
+		}
+		if task.ReportPartitionKey == "" {
+			log.Printf("GetReportInfo: task found but ReportPartitionKey is empty")
+			return nil, status.Errorf(codes.NotFound, "report partition key is empty in database")
+		}
+
+		pk = partitionkey.NewReportKey("", "", "", "")
+		if err := pk.Unmarshal(task.ReportPartitionKey); err != nil {
+			log.Printf("GetReportInfo: unmarshal pk failed: %v, data=%s", err, task.ReportPartitionKey)
+			return nil, status.Errorf(codes.Internal, "invalid report_id in database: %v", err)
+		}
+	} else if req.Type == "systest" || req.Type == "integrate" || req.Type == "integration" {
+		if s.stStore == nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "systest store not initialized")
+		}
+		task, err := s.stStore.Query(ctx, req.Module, req.Branch, req.Commit)
 		if err != nil {
 			log.Printf("GetReportInfo: query db failed: %v", err)
 			return nil, status.Errorf(codes.NotFound, "report not found in database: %v", err)
@@ -176,16 +201,24 @@ func (s *coverageService) GetFileCoverage(ctx context.Context, req *coverage.Get
 	defer rep.Close(ctx)
 
 	meta := rep.GetMeta()
+	module := meta.Module
+	if module == "" {
+		module = pk.GetModule()
+	}
+	commit := meta.Commit
+	if commit == "" {
+		commit = pk.GetCommit()
+	}
 
 	lines, err := rep.GetFileCoverLines(req.Path)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get lines: %v", err)
 	}
 
-	content, err := s.codeProvider.GetFileContent(ctx, meta.Module, meta.Commit, req.Path)
+	content, err := s.codeProvider.GetFileContent(ctx, module, commit, req.Path)
 	if err != nil {
-		log.Printf("Error getting source code: %v (module=%s, commit=%s, path=%s)", err, meta.Module, meta.Commit, req.Path)
-		content = fmt.Sprintf("Error reading source: %v", err)
+		log.Printf("Error getting source code: %v (module=%s, commit=%s, path=%s)", err, module, commit, req.Path)
+		content = fmt.Sprintf("Error reading source: %v (owner=%s, repo=%s, ref=%s, status=%s)", err, "", "", "", "")
 	}
 
 	return &coverage.GetFileCoverageResponse{
@@ -197,13 +230,25 @@ func (s *coverageService) GetFileCoverage(ctx context.Context, req *coverage.Get
 
 func (s *coverageService) GetMetadataList(ctx context.Context, req *coverage.GetMetadataListRequest) (*coverage.GetMetadataListResponse, error) {
 	log.Printf("GetMetadataList called with type: %s", req.Type)
-	// 目前仅支持 unittest 类型
-	if req.Type != "unittest" && req.Type != "" {
+
+	var modules, branches, commits []string
+	var err error
+
+	if req.Type == "systest" || req.Type == "integrate" || req.Type == "integration" {
+		if s.stStore == nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "systest store not initialized")
+		}
+		modules, branches, commits, err = s.stStore.GetMetadataList(ctx)
+	} else if req.Type == "unittest" || req.Type == "unit_test" || req.Type == "unit" || req.Type == "" {
+		if s.utStore == nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "unittest store not initialized")
+		}
+		modules, branches, commits, err = s.utStore.GetMetadataList(ctx)
+	} else {
 		log.Printf("GetMetadataList type not supported: %s", req.Type)
 		return &coverage.GetMetadataListResponse{}, nil
 	}
 
-	modules, branches, commits, err := s.utStore.GetMetadataList(ctx)
 	if err != nil {
 		log.Printf("GetMetadataList failed: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to get metadata list: %v", err)

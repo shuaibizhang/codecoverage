@@ -36,6 +36,24 @@ func NewUnitTestNormalCovKey(module, branch, commit string, unittestRunID string
 	}
 }
 
+// NewEmptySystestNormalCovKey 创建一个空的系统测试覆盖率数据寻址句柄，通常用于 Unmarshal
+func NewEmptySystestNormalCovKey() PartitionKey {
+	return &normalCovKey{
+		TType: Systest,
+	}
+}
+
+// NewSystestNormalCovKey 创建系统测试覆盖率数据寻址句柄
+func NewSystestNormalCovKey(module, branch, commit string) PartitionKey {
+	return &normalCovKey{
+		TType:     Systest,
+		Module:    module,
+		Branch:    branch,
+		Commit:    commit,
+		Timestamp: time.Now().Unix(),
+	}
+}
+
 func (k *normalCovKey) Type() PartitionType { return NormalCovType }
 
 func (k *normalCovKey) Marshal() (string, error) {
@@ -83,3 +101,7 @@ func (k *normalCovKey) RealPathPrefix() string {
 
 func (k *normalCovKey) Offset() int64     { return k.offset }
 func (k *normalCovKey) SetOffset(o int64) { k.offset = o }
+
+func (k *normalCovKey) GetModule() string { return k.Module }
+func (k *normalCovKey) GetBranch() string { return k.Branch }
+func (k *normalCovKey) GetCommit() string { return k.Commit }

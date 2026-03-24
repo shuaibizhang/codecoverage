@@ -1,4 +1,3 @@
--- 删除table，如果存在，方便测试
 DROP TABLE IF EXISTS `unittest_task`;
 
 CREATE TABLE `unittest_task` (
@@ -18,4 +17,4 @@ CREATE TABLE `unittest_task` (
     primary key (`id`),
     key `idx_run_id` (`run_id`),
     key `idx_module_branch_commit` (`module`,`branch`, `commit`)
-) engine=InnoDB default charset=utf8mb4 comment='单元测试覆盖率任务表'
+) engine=InnoDB default charset=utf8mb4 comment='单元测试覆盖率任务表';

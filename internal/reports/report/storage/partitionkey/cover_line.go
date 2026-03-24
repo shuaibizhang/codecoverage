@@ -26,3 +26,7 @@ func (k *coverageKey) Unmarshal(data string) error {
 func (k *coverageKey) RealPathPrefix() string { return k.Path }
 func (k *coverageKey) Offset() int64          { return k.offset }
 func (k *coverageKey) SetOffset(o int64)      { k.offset = o }
+
+func (k *coverageKey) GetModule() string { return "" }
+func (k *coverageKey) GetBranch() string { return "" }
+func (k *coverageKey) GetCommit() string { return "" }

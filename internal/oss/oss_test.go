@@ -102,7 +102,7 @@ func TestMinioOSS_PutObject(t *testing.T) {
 func TestMinioOSS_PutObject2(t *testing.T) {
 	// 使用 dev.toml 中的配置
 	configPath := "../../conf/dev.toml"
-	err := config.Init(configPath)
+	err := config.Init(context.Background(), configPath)
 	if err != nil {
 		t.Fatalf("Failed to initialize config: %v", err)
 	}

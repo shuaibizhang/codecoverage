@@ -21,7 +21,8 @@ write_timeout = "30s"
 
 [apollo]
 enabled = true
-addr = "http://49.233.216.158/apollo"
+addr = "http://49.233.216.158/apollo-config"
 app_id = "code-coverage"
 env = "dev"
-namespace = "server-dev.yml"
+namespace = "server-dev"
+secret = "2b09d78c0fc543648f444b7e514261b1"

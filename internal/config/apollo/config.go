@@ -7,4 +7,5 @@ type ApolloConfig struct {
 	Env       string `mapstructure:"env" yaml:"env"`
 	Cluster   string `mapstructure:"cluster" yaml:"cluster"`
 	Namespace string `mapstructure:"namespace" yaml:"namespace"`
+	Secret    string `mapstructure:"secret" yaml:"secret"`
 }

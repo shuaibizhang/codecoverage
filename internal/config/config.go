@@ -1,14 +1,18 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/shuaibizhang/codecoverage/internal/config/apollo"
 	"github.com/shuaibizhang/codecoverage/internal/oss"
+	"github.com/shuaibizhang/codecoverage/logger"
 	"github.com/shuaibizhang/codecoverage/store/db"
 	"github.com/spf13/viper"
 )
+
+const TagConfig = "_config"
 
 var (
 	cfg Config
@@ -23,7 +27,8 @@ type Config struct {
 }
 
 type AgentConfig struct {
-	Addr string `mapstructure:"addr" yaml:"addr"`
+	Addr            string `mapstructure:"addr" yaml:"addr"`
+	CoverServerAddr string `mapstructure:"cover_server_addr" yaml:"cover_server_addr"`
 }
 
 type GithubConfig struct {
@@ -32,7 +37,7 @@ type GithubConfig struct {
 }
 
 // Init 初始化配置
-func Init(configPath string) error {
+func Init(ctx context.Context, configPath string) error {
 	v := viper.New()
 
 	// 1. 设置代码默认值 (兜底)
@@ -63,6 +68,10 @@ func Init(configPath string) error {
 	// 4. 支持环境变量 (优先级高于文件)
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	// 显式绑定，确保即使配置文件中没有这些 key，也能从环境变量读取
+	v.BindEnv("github.token", "GITHUB_TOKEN")
+	v.BindEnv("github.owner", "GITHUB_OWNER")
+	v.BindEnv("apollo.secret", "APOLLO_SECRET")
 
 	if err := v.ReadInConfig(); err != nil {
 		fmt.Printf("Warning: failed to read local config file: %v\n", err)
@@ -75,18 +84,31 @@ func Init(configPath string) error {
 
 	// 6. 如果开启了 Apollo，则拉取远程配置并 Merge 到 Viper (优先级高于文件，但低于 ENV/CLI)
 	if cfg.ApolloConfig.Enabled {
+		logger.Default().Infof(ctx, TagConfig, "init Apollo client for app_id: %s, addr: %s", cfg.ApolloConfig.AppID, cfg.ApolloConfig.Addr)
 		apolloCli, err := apollo.NewApolloClient(cfg.ApolloConfig)
 		if err != nil {
+			logger.Default().Errorf(context.Background(), TagConfig, "failed to create apollo client: %v", err)
 			return fmt.Errorf("failed to create apollo client: %w", err)
 		}
 		// 从 Apollo 中获取名为 "github" 的 YAML 配置并解析到结构体
+		logger.Default().Infof(ctx, TagConfig, "Fetching 'github' config from Apollo namespace: %s", cfg.ApolloConfig.Namespace)
 		if err := apolloCli.UnmarshalYAML("github", &cfg.GithubConfig); err != nil {
-			fmt.Printf("Warning: failed to load github config from apollo: %v\n", err)
+			logger.Default().Errorf(context.Background(), TagConfig, "Warning: failed to load github config from apollo: %v", err)
+		} else {
+			logger.Default().Infof(context.Background(), TagConfig, "Successfully loaded github config from Apollo: token=%s, owner=%s",
+				maskString(cfg.GithubConfig.Token), cfg.GithubConfig.Owner)
 		}
 	}
 
-	fmt.Printf("Config initialized successfully. Apollo enabled: %v\n", cfg.ApolloConfig.Enabled)
+	logger.Default().Infof(ctx, TagConfig, "Config initialized successfully. Apollo enabled: %v", cfg.ApolloConfig.Enabled)
 	return nil
+}
+
+func maskString(s string) string {
+	if len(s) <= 4 {
+		return "****"
+	}
+	return s[:2] + "****" + s[len(s)-2:]
 }
 
 // GetConfig 获取全局配置对象

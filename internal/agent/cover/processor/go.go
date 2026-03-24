@@ -20,11 +20,11 @@ type GoProcessor struct {
 }
 
 const (
-	BaseCommitId = "Goc-Header-Base-Commit-Id"
-	BranchName   = "Goc-Header-Branch-Name"
+	BaseCommitId = "Goc-Header-Basecommit-Id"
+	BranchName   = "Goc-Header-Branch"
 	BuildId      = "Goc-Header-Build-Id"
 	CommitId     = "Goc-Header-Commit-Id"
-	ModuleName   = "Goc-Header-Module-Name"
+	ModuleName   = "Goc-Header-Module"
 	SessionId    = "Goc-Header-Session-Id"
 )
 

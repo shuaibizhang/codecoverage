@@ -57,6 +57,10 @@ export MODULE="${MODULE:-}"
 export BRANCH="${BRANCH:-}"
 export COMMIT="${COMMIT:-}"
 export BASE_COMMIT="${BASE_COMMIT:-}"
+# export MODULE="shuaibizhang/codecoverage"
+# export BRANCH="bingozhang"
+# export COMMIT="0646a5c9a7c051c0f0171e79b082fb8224414b88"
+# export BASE_COMMIT="b60f1d75bf78cecb82b87346fab1c74420aa65b0"
 set_module_info() {
     log "HEADER" "环境检测"
     log "INFO" "正在检测环境和分支信息..."
@@ -182,7 +186,7 @@ function prepare_output() {
 function build_server() {
     prepare_output
     log "INFO" "开始构建 cover-server...，插桩编译参数COV=$COV"
-    make $APP_SERVER
+    make $APP_SERVER COV=$COV
     log "SUCCESS" "cover-server构建完成: $OUTPUT/bin/$APP_SERVER"
     # 根据 Makefile，二进制可能在根目录或 cmd 目录下
     if [ -f $APP_SERVER ]; then
@@ -195,8 +199,8 @@ function build_server() {
 # 构建 cover-agent
 function build_agent() {
     prepare_output
-    log "INFO" "开始构建 cover-agent..."
-    make $APP_AGENT
+    log "INFO" "开始构建 cover-agent...，插桩编译参数COV=$COV"
+    make $APP_AGENT COV=$COV
     log "SUCCESS" "cover-agent构建完成: $OUTPUT/bin/$APP_AGENT"
     # 根据 Makefile，二进制可能在根目录或 cmd 目录下
     if [ -f $APP_AGENT ]; then
@@ -228,14 +232,14 @@ function clean() {
 }
 
 # 主逻辑
+if [ x$COV == xyes ]; then
+    install_goc
+    # 注入服务四元组元信息（模块，分支，commit，basecommit）
+    set_module_info
+fi
+
 case "$1" in
     server)
-        # 安装goc
-        if [ x$COV == xyes ]; then
-            install_goc
-            # 注入服务四元组元信息（模块，分支，commit，basecommit）
-            set_module_info
-        fi
         build_server
         make_output
         ;;

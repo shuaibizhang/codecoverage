@@ -27,6 +27,9 @@ type CoverReport interface {
 	/* 改，修改文件报告覆盖率数据 */
 	UpdateFile(path string, lines []int32, diffInfo FileDiffInfo, flags uint32) error
 
+	// SetMeta 设置覆盖率报告元数据信息
+	SetMeta(meta MetaInfo)
+
 	/* 查，查找元数据、树节点覆盖率概览、文件覆盖行 */
 	// GetMeta 获取覆盖率报告元数据信息(项目覆盖率概览数据)
 	GetMeta() MetaInfo
@@ -95,6 +98,11 @@ type CoverReportImpl struct {
 
 func (r *CoverReportImpl) GetMeta() MetaInfo {
 	return r.Meta
+}
+
+func (r *CoverReportImpl) SetMeta(meta MetaInfo) {
+	r.Meta = meta
+	r.Change = true
 }
 
 func (r *CoverReportImpl) AddFile(path string, lines []int32, diffInfo FileDiffInfo) error {

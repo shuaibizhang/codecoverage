@@ -8,6 +8,7 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/shuaibizhang/codecoverage/idl/cover-server/coverage"
+	"github.com/shuaibizhang/codecoverage/idl/cover-server/register"
 	"github.com/shuaibizhang/codecoverage/internal/server/controller"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,6 +42,7 @@ func (s *Server) Run() error {
 		grpc.MaxSendMsgSize(100*1024*1024), // 允许发送 100MB 数据
 	)
 	coverage.RegisterCoverageServiceServer(grpcServer, s.ctrl)
+	register.RegisterRegisterServiceServer(grpcServer, s.ctrl)
 	reflection.Register(grpcServer)
 
 	go func() {
@@ -65,6 +67,10 @@ func (s *Server) Run() error {
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(100 * 1024 * 1024)), // 设置为 100MB
 	}
 	err = coverage.RegisterCoverageServiceHandlerFromEndpoint(context.Background(), gwmux, s.grpcAddr, opts)
+	if err != nil {
+		return err
+	}
+	err = register.RegisterRegisterServiceHandlerFromEndpoint(context.Background(), gwmux, s.grpcAddr, opts)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/shuaibizhang/codecoverage/idl/cover-server/coverage"
+	"github.com/shuaibizhang/codecoverage/idl/cover-server/register"
 	"github.com/shuaibizhang/codecoverage/internal/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,14 +39,19 @@ func (c *CoverageController) GetMetadataList(ctx context.Context, req *coverage.
 // 它通过组合各个子控制器来完成所有 RPC 方法的实现
 type Controller struct {
 	coverage.UnimplementedCoverageServiceServer
+	register.UnimplementedRegisterServiceServer
 	*CoverageController
 	*UnitTestController
+	*SystestController
+	*RegisterController
 }
 
-func NewController(cov *CoverageController, ut *UnitTestController) *Controller {
+func NewController(cov *CoverageController, ut *UnitTestController, st *SystestController, reg *RegisterController) *Controller {
 	return &Controller{
 		CoverageController: cov,
 		UnitTestController: ut,
+		SystestController:  st,
+		RegisterController: reg,
 	}
 }
 
@@ -70,4 +76,18 @@ func (c *Controller) UploadUnittestReport(ctx context.Context, req *coverage.Upl
 		return nil, status.Errorf(codes.Unimplemented, "unittest report service is not enabled")
 	}
 	return c.UnitTestController.UploadUnittestReport(ctx, req)
+}
+
+func (c *Controller) UploadSystestCoverData(ctx context.Context, req *coverage.UploadSystestCoverDataRequest) (*coverage.UploadSystestCoverDataResponse, error) {
+	if c.SystestController == nil {
+		return nil, status.Errorf(codes.Unimplemented, "systest report service is not enabled")
+	}
+	return c.SystestController.UploadSystestCoverData(ctx, req)
+}
+
+func (c *Controller) AgentRegister(ctx context.Context, req *register.AgentRegisterRequest) (*register.AgentRegisterResponse, error) {
+	if c.RegisterController == nil {
+		return nil, status.Errorf(codes.Unimplemented, "register service is not enabled")
+	}
+	return c.RegisterController.AgentRegister(ctx, req)
 }

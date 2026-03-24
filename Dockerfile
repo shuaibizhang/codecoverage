@@ -45,6 +45,9 @@ ENV SERVICE_TYPE=${SERVICE_TYPE}
 # 设置工作目录
 WORKDIR /app
 
+# 创建日志目录
+RUN mkdir -p /app/logs && chmod 777 /app/logs
+
 # 复制构建产物
 COPY --from=builder /app/output /app/
 

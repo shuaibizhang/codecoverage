@@ -7,6 +7,7 @@ const (
 	ReportType       PartitionType = "coverage_report"
 	CoverageDataType PartitionType = "coverage_data"
 	NormalCovType    PartitionType = "normal_cover_data"
+	DiffType         PartitionType = "diff_data"
 )
 
 // 测试类型
@@ -17,6 +18,7 @@ const (
 	IntegrateTest TestType = "integrate"
 	OnlineTest    TestType = "online"
 	AutoTest      TestType = "auto"
+	Systest       TestType = "systest"
 )
 
 // PartitionKey 分区接口，既是报告的寻址句柄，也是磁盘物理位置的寻址句柄
@@ -31,4 +33,9 @@ type PartitionKey interface {
 	// Offset 获取在该路径下的偏移量（用于 .cda 随机访问）
 	Offset() int64
 	SetOffset(offset int64)
+
+	// 获取元数据信息
+	GetModule() string
+	GetBranch() string
+	GetCommit() string
 }

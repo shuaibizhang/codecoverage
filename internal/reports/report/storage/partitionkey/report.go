@@ -36,6 +36,17 @@ func NewReportKey(ttype TestType, module, branch, commit string) PartitionKey {
 	}
 }
 
+// NewSystestReportKey 创建系统测试报告寻址句柄
+func NewSystestReportKey(module, branch, commit string) PartitionKey {
+	return &reportKey{
+		TType:     Systest,
+		Module:    module,
+		Branch:    branch,
+		Commit:    commit,
+		Timestamp: time.Now().Unix(),
+	}
+}
+
 // NewAutoReportKey 创建自动化测试报告寻址句柄，用于定位 .cno 文件
 func NewAutoReportKey(module, branch, commit string, planID, execID uint64) PartitionKey {
 	return &reportKey{
@@ -94,3 +105,7 @@ func (k *reportKey) RealPathPrefix() string {
 
 func (k *reportKey) Offset() int64     { return k.offset }
 func (k *reportKey) SetOffset(o int64) { k.offset = o }
+
+func (k *reportKey) GetModule() string { return k.Module }
+func (k *reportKey) GetBranch() string { return k.Branch }
+func (k *reportKey) GetCommit() string { return k.Commit }

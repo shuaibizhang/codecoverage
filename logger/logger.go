@@ -3,6 +3,8 @@ package logger
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"go.uber.org/zap"
@@ -23,14 +25,13 @@ type Logger interface {
 	With(keysAndValues ...interface{}) Logger
 	// Sync 刷新缓冲区
 	Sync() error
+	// RedirectStdLog 重定向标准库 log 的输出到当前 logger
+	RedirectStdLog() func()
 }
 
 var (
 	// defaultLogger 是全局默认实例
 	defaultLogger Logger
-	// traceIDGen 全局 TraceID 生成器已被 trace.go 取代
-	// once 确保默认实例只初始化一次
-	once sync.Once
 	// mu 保护 defaultLogger 的并发写
 	mu sync.RWMutex
 )
@@ -73,6 +74,7 @@ func NewZapLogger(cfg zap.Config) *ZapLogger {
 func NewDevelopmentConfig() zap.Config {
 	cfg := zap.NewDevelopmentConfig()
 	cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	setupOutput(&cfg)
 	return cfg
 }
 
@@ -80,7 +82,41 @@ func NewDevelopmentConfig() zap.Config {
 func NewProductionConfig() zap.Config {
 	cfg := zap.NewProductionConfig()
 	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	setupOutput(&cfg)
 	return cfg
+}
+
+func setupOutput(cfg *zap.Config) {
+	output := os.Getenv("LOG_OUTPUT")
+	logFilePath := os.Getenv("LOG_FILE_PATH")
+
+	// 生产环境常见的策略：根据环境变量控制输出目标
+	// stdout: 仅标准输出 (符合云原生/12-Factor 最佳实践)
+	// file:   仅文件 (传统部署方式)
+	// both:   两者都有 (过渡期或需要双备份)
+
+	switch output {
+	case "file":
+		if logFilePath != "" {
+			if err := os.MkdirAll(filepath.Dir(logFilePath), 0755); err == nil {
+				cfg.OutputPaths = []string{logFilePath}
+				cfg.ErrorOutputPaths = []string{logFilePath}
+			}
+		}
+	case "both":
+		if logFilePath != "" {
+			if err := os.MkdirAll(filepath.Dir(logFilePath), 0755); err == nil {
+				cfg.OutputPaths = append(cfg.OutputPaths, logFilePath)
+				cfg.ErrorOutputPaths = append(cfg.ErrorOutputPaths, logFilePath)
+			}
+		}
+	case "stdout":
+		fallthrough
+	default:
+		// 默认只输出到 stdout
+		cfg.OutputPaths = []string{"stdout"}
+		cfg.ErrorOutputPaths = []string{"stderr"}
+	}
 }
 
 func (l *ZapLogger) Debug(tag string, args ...interface{}) {
@@ -151,18 +187,27 @@ func (l *ZapLogger) Errorf(ctx context.Context, tag string, format string, args 
 	}
 }
 
-func (l *ZapLogger) With(keysAndValues ...interface{}) Logger {
-	return &ZapLogger{z: l.z.With(keysAndValues...)}
-}
-
 func (l *ZapLogger) Sync() error {
 	return l.z.Sync()
+}
+
+func (l *ZapLogger) RedirectStdLog() func() {
+	return zap.RedirectStdLog(l.z.Desugar())
+}
+
+func (l *ZapLogger) With(keysAndValues ...interface{}) Logger {
+	return &ZapLogger{z: l.z.With(keysAndValues...)}
 }
 
 // --- 包级导出函数 (Global Helper Functions) ---
 
 func Debug(tag string, args ...interface{}) {
 	Default().Debug(tag, args...)
+}
+
+// 将标准库的重定向到我们的日志
+func RedirectStdLog() func() {
+	return Default().RedirectStdLog()
 }
 
 func Debugf(ctx context.Context, tag string, format string, args ...interface{}) {
