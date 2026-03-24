@@ -94,7 +94,7 @@ func (p *GoProcessor) getRawCoverage(ctx context.Context) (string, http.Header, 
 		return testGoGetRawCoverage()
 	}
 
-	// http://127.0.0.1:8080/v1/cover/profile
+	// http://127.0.0.1:28080/v1/cover/profile
 	url := fmt.Sprintf("http://%s/v1/cover/profile", p.addr)
 	resp, respBody, errs := gorequest.New().Post(url).Type("json").End()
 	if len(errs) > 0 {

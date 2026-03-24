@@ -46,10 +46,16 @@ type CoverReport interface {
 	// FindNode 获取路径为 path 的节点
 	FindNode(path string) tree.TreeNode
 
+	// Match 给定模糊匹配 key，查找符合条件的树节点（包含其祖先节点）
+	Match(key string, isIncrement bool) ([]tree.TreeNode, error)
+
 	// Flush 刷新报告到存储源
 	Flush(ctx context.Context) error
 	// Close 关闭报告，释放资源
 	Close(ctx context.Context) error
+
+	// Merge 合并另一个报告到当前报告
+	Merge(ctx context.Context, other CoverReport) error
 }
 
 // Storage 覆盖率报告持久化接口
@@ -323,6 +329,111 @@ func (r *CoverReportImpl) FindNode(path string) tree.TreeNode {
 	return r.findNode(path)
 }
 
+type matchVisitor struct {
+	lowerKey    string
+	isIncrement bool
+	matched     map[string]tree.TreeNode
+	addedPaths  map[string]bool // 缓存已处理的路径（包含祖先），避免冗余操作
+	stack       []tree.TreeNode
+	pruneDepth  int // 剪枝深度：>0 表示当前处于一个已匹配目录的内部，停止继续搜索子节点
+}
+
+func (v *matchVisitor) VisitDirEnter(dir *tree.DirNode) {
+	v.stack = append(v.stack, dir)
+
+	// 如果已经在剪枝路径下，只增加深度，不进行任何匹配逻辑
+	if v.pruneDepth > 0 {
+		v.pruneDepth++
+		return
+	}
+
+	// 核心优化：如果当前目录已经匹配了，我们记录它并开启剪枝
+	// 因为它的所有子孙节点对当前搜索词来说都是“匹配路径下”的，不需要重复返回
+	// 这样可以极大地减少返回给前端的节点数量 (从几千降至几十)
+	if v.isMatch(dir) {
+		v.addWithAncestors(dir)
+		v.pruneDepth = 1 // 标记开始剪枝
+	}
+}
+
+func (v *matchVisitor) VisitDirExit(dir *tree.DirNode) {
+	// 维护剪枝深度
+	if v.pruneDepth > 0 {
+		v.pruneDepth--
+	}
+	v.stack = v.stack[:len(v.stack)-1]
+}
+
+func (v *matchVisitor) VisitFile(file *tree.FileNode) {
+	// 如果已经在剪枝路径下，跳过文件匹配
+	if v.pruneDepth > 0 {
+		return
+	}
+
+	if v.isMatch(file) {
+		v.addWithAncestors(file)
+	}
+}
+
+func (v *matchVisitor) isMatch(node tree.TreeNode) bool {
+	if v.isIncrement && !node.HasIncrement() {
+		return false
+	}
+	// 使用预计算好的 lowerKey，减少 strings.ToLower 调用
+	return strings.Contains(strings.ToLower(node.Name()), v.lowerKey)
+}
+
+func (v *matchVisitor) addWithAncestors(node tree.TreeNode) {
+	path := node.Path()
+	if v.addedPaths[path] {
+		return
+	}
+
+	// 记录匹配节点
+	v.matched[path] = node
+	v.addedPaths[path] = true
+
+	// 记录所有祖先，使用 addedPaths 缓存避免 O(D) 的重复循环
+	for i := len(v.stack) - 1; i >= 0; i-- {
+		n := v.stack[i]
+		p := n.Path()
+		if v.addedPaths[p] {
+			break // 祖先链条已经处理过，直接跳出
+		}
+		v.matched[p] = n
+		v.addedPaths[p] = true
+	}
+}
+
+func (r *CoverReportImpl) Match(key string, isIncrement bool) ([]tree.TreeNode, error) {
+	if r.Tree == nil {
+		return nil, nil
+	}
+	visitor := &matchVisitor{
+		lowerKey:    strings.ToLower(key),
+		isIncrement: isIncrement,
+		matched:     make(map[string]tree.TreeNode),
+		addedPaths:  make(map[string]bool),
+		stack:       make([]tree.TreeNode, 0),
+		pruneDepth:  0,
+	}
+	r.Tree.Accept(visitor)
+
+	// 将匹配结果构建成一颗“稀疏树”返回
+	return r.buildSparseTree(visitor.matched), nil
+}
+
+func (r *CoverReportImpl) buildSparseTree(matched map[string]tree.TreeNode) []tree.TreeNode {
+	// 为了简化，我们直接返回扁平化的匹配节点列表
+	// 但前端需要知道哪些是匹配项，哪些是祖先
+	// 我们已经通过 matched 收集了所有必要的节点
+	result := make([]tree.TreeNode, 0, len(matched))
+	for _, node := range matched {
+		result = append(result, node)
+	}
+	return result
+}
+
 // 辅助方法：查找节点
 func (r *CoverReportImpl) findNode(path string) tree.TreeNode {
 	if path == "" || path == "*" {
@@ -371,5 +482,136 @@ func NewCoverReport(storage Storage, meta MetaInfo, key partitionkey.PartitionKe
 		Storage:      storage,
 		PartitionKey: key,
 		Meta:         meta,
+	}
+}
+
+func (r *CoverReportImpl) Merge(ctx context.Context, other CoverReport) error {
+	if other == nil {
+		return nil
+	}
+
+	// 1. 校验模块是否一致
+	otherMeta := other.GetMeta()
+	if r.Meta.Module != otherMeta.Module {
+		return fmt.Errorf("module mismatch: %s != %s", r.Meta.Module, otherMeta.Module)
+	}
+
+	// 2. 递归合并树节点
+	return r.mergeNode(ctx, other, other.FindNode(""))
+}
+
+func (r *CoverReportImpl) mergeNode(ctx context.Context, other CoverReport, node tree.TreeNode) error {
+	if node == nil {
+		return nil
+	}
+
+	if !node.IsDir() {
+		// 如果是文件，执行文件合并
+		return r.mergeFile(ctx, other, node)
+	}
+
+	// 如果是目录，递归遍历子节点
+	dir, ok := node.(*tree.DirNode)
+	if !ok {
+		return nil
+	}
+
+	for child := range dir.Children() {
+		if err := r.mergeNode(ctx, other, child); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *CoverReportImpl) mergeFile(ctx context.Context, other CoverReport, otherNode tree.TreeNode) error {
+	path := otherNode.Path()
+
+	// 获取 other 的行覆盖率数据
+	otherLines, err := other.GetFileCoverLines(path)
+	if err != nil {
+		return fmt.Errorf("get other file cover lines %s: %w", path, err)
+	}
+
+	existingNode := r.findNode(path)
+	if existingNode != nil {
+		// 文件已存在，合并覆盖率
+		if existingNode.IsDir() {
+			return fmt.Errorf("path %s is a directory in current report but a file in other", path)
+		}
+
+		currentLines, err := r.GetFileCoverLines(path)
+		if err != nil {
+			return fmt.Errorf("get current file cover lines %s: %w", path, err)
+		}
+
+		// 确保行数一致（如果 commit 不同，这里可能会不一致）
+		if len(currentLines) != len(otherLines) {
+			// 跨 commit 合并的兜底：如果行数不一致，以基准为准，不合并
+			return nil
+		}
+
+		// 执行合并
+		mergedLines := make([]uint32, len(currentLines))
+		for i := 0; i < len(currentLines); i++ {
+			l1, l2 := currentLines[i], otherLines[i]
+			// 合并策略：位 OR
+			merged := (l1 & tree.MaskInstrLine) | (l2 & tree.MaskInstrLine)
+			merged |= (l1 & tree.MaskIncrLine) | (l2 & tree.MaskIncrLine)
+			count := (l1 & tree.MaskCoverCount) + (l2 & tree.MaskCoverCount)
+			if count > tree.MaskCoverCount {
+				count = tree.MaskCoverCount
+			}
+			merged |= count
+			mergedLines[i] = merged
+		}
+
+		// 将 mergedLines (uint32) 转换回 []int32 以调用 UpdateFile
+		rawLines := make([]int32, len(mergedLines))
+		var addedLines []uint32
+		for i, val := range mergedLines {
+			if (val & tree.MaskInstrLine) == 0 {
+				rawLines[i] = -1
+			} else {
+				rawLines[i] = int32(val & tree.MaskCoverCount)
+			}
+			if (val & tree.MaskIncrLine) != 0 {
+				addedLines = append(addedLines, uint32(i+1))
+			}
+		}
+
+		// 获取 flags
+		fileNode := existingNode.(*tree.FileNode)
+		otherFile := otherNode.(*tree.FileNode)
+		flags := fileNode.FileFlags | otherFile.FileFlags
+
+		// UpdateFile
+		return r.UpdateFile(path, rawLines, FileDiffInfo{AddedLines: addedLines}, flags)
+	} else {
+		// 文件不存在，直接添加
+		rawLines := make([]int32, len(otherLines))
+		var addedLines []uint32
+		for i, val := range otherLines {
+			if (val & tree.MaskInstrLine) == 0 {
+				rawLines[i] = -1
+			} else {
+				rawLines[i] = int32(val & tree.MaskCoverCount)
+			}
+			if (val & tree.MaskIncrLine) != 0 {
+				addedLines = append(addedLines, uint32(i+1))
+			}
+		}
+
+		otherFile := otherNode.(*tree.FileNode)
+		if err := r.AddFile(path, rawLines, FileDiffInfo{AddedLines: addedLines}); err != nil {
+			return err
+		}
+		// 设置 flags
+		if newNode := r.findNode(path); newNode != nil {
+			if fn, ok := newNode.(*tree.FileNode); ok {
+				fn.FileFlags = otherFile.FileFlags
+			}
+		}
+		return nil
 	}
 }

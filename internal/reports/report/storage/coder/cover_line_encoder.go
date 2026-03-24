@@ -6,6 +6,8 @@ import (
 	"io"
 	"slices"
 	"time"
+
+	"github.com/shuaibizhang/codecoverage/internal/reports/report/tree"
 )
 
 /*
@@ -32,10 +34,10 @@ const (
 	int32Size        = 4
 
 	// uint32 编码掩码
-	MaskInstrLine  uint32 = 1 << 31    // 1 << 31 位为是否是指令行的标识位
-	MaskIncrLine   uint32 = 1 << 30    // 1 << 30 位为是否是增量行的标识位
-	MaskCoverCount uint32 = 0x3FFFFFFF // 其余 30 位为覆盖次数掩码
-	MaxCoverCount  int32  = 0x3FFFFFFF // 最大覆盖次数 (1073741823)
+	MaskInstrLine  = tree.MaskInstrLine
+	MaskIncrLine   = tree.MaskIncrLine
+	MaskCoverCount = tree.MaskCoverCount
+	MaxCoverCount  = tree.MaxCoverCount
 )
 
 var byteOrder = binary.BigEndian

@@ -142,7 +142,7 @@ func main() {
 	}
 
 	// 1.6 初始化 Service
-	covSvc := service.NewCoverageService(mgr, codeProv, unittestStore, systestStore)
+	covSvc := service.NewCoverageService(mgr, codeProv, diffSvc, unittestStore, systestStore)
 	var unittestSvc utservice.UnitTestService
 	if unittestStore != nil {
 		unittestSvc = utservice.NewUnitTestService(unittestStore, ossCli, mgr, cfg.OssConfig.BucketName)
@@ -166,7 +166,7 @@ func main() {
 	ctrl := controller.NewController(covCtrl, utCtrl, stCtrl, regCtrl)
 
 	// 2. 启动服务器
-	srv := server.NewServer(":9090", ":8080", ctrl)
+	srv := server.NewServer(cfg.ServerConfig.GrpcAddr, cfg.ServerConfig.HttpAddr, ctrl)
 	defer logger.Default().Sync()
 	if err := srv.Run(); err != nil {
 		log.Fatalf("server failed: %v", err)

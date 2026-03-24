@@ -45,6 +45,28 @@ export interface FileCoverage {
   content: string; // 源码内容
 }
 
+export interface ReportSelector {
+  module: string;
+  branch: string;
+  commit: string;
+  type: string;
+}
+
+export interface ReportSource {
+  report_id?: string;
+  selector?: ReportSelector;
+}
+
+export interface MergeReportsRequest {
+  base_report: ReportSource;
+  other_reports: ReportSource[];
+}
+
+export interface MergeReportsResponse {
+  merged_report_id: string;
+  success: boolean;
+}
+
 // 覆盖行标识位解析
 export const MaskInstrLine = 0x80000000; // 1 << 31 位为是否是指令行的标识位 (1表示非指令行，0表示指令行)
 export const MaskIncrLine = 0x40000000;  // 1 << 30 位为是否是增量行的标识位

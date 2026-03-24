@@ -55,9 +55,9 @@ COPY --from=builder /app/output /app/
 RUN apk add --no-cache bash libc6-compat
 
 # 暴露所有服务端口
-# cover-server: 8080 (HTTP), 9090 (gRPC)
+# cover-server: 28080 (HTTP), 29090 (gRPC)
 # cover-agent: 8180 (HTTP), 2039 (RPC/Config)
-EXPOSE 8080 9090 8180 2039
+EXPOSE 28080 29090 8180 2039
 
 # 默认启动命令，可以通过环境变量 SERVICE_TYPE 控制启动的服务
 ENTRYPOINT ["/bin/bash", "./control.sh", "start"]

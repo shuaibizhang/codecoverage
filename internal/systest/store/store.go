@@ -9,7 +9,7 @@ import (
 type SystestStore interface {
 	Query(ctx context.Context, module, branch, commit string) (*SystestTask, error)
 	Save(ctx context.Context, task *SystestTask) error
-	GetMetadataList(ctx context.Context) ([]string, []string, []string, error)
+	GetMetadataList(ctx context.Context, module, branch string) ([]string, []string, []string, error)
 }
 
 type systestStore struct {
@@ -51,7 +51,7 @@ func (s *systestStore) Save(ctx context.Context, task *SystestTask) error {
 	return nil
 }
 
-func (s *systestStore) GetMetadataList(ctx context.Context) ([]string, []string, []string, error) {
+func (s *systestStore) GetMetadataList(ctx context.Context, module, branch string) ([]string, []string, []string, error) {
 	// 定义辅助结构体以便 scanner 扫描
 	type moduleItem struct {
 		Module string `ddb:"module"`
@@ -63,9 +63,18 @@ func (s *systestStore) GetMetadataList(ctx context.Context) ([]string, []string,
 		Commit string `ddb:"commit"`
 	}
 
-	// 获取去重后的 module
+	// 基础查询条件
+	cond := store.NewCond().NotDeleted()
+
+	// 如果有传入 module，先过滤基础条件，确保所有后续查询都锁定在该模块
+	if module != "" {
+		// 精确匹配模块名
+		cond = cond.Where("module", module)
+	}
+
+	// 获取该模块下的 module 列表（通常只有一个，或者如果为空则获取所有）
 	var mItems []moduleItem
-	err := s.store.Query(ctx, SystestTask{}.TableName(), store.NewCond().NotDeleted(), []string{"DISTINCT module as module"}, &mItems)
+	err := s.store.Query(ctx, SystestTask{}.TableName(), cond, []string{"DISTINCT module as module"}, &mItems)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -74,9 +83,14 @@ func (s *systestStore) GetMetadataList(ctx context.Context) ([]string, []string,
 		modules = append(modules, item.Module)
 	}
 
-	// 获取去重后的 branch
+	// 获取该模块下去重后的 branch，按最新创建时间排序
 	var bItems []branchItem
-	err = s.store.Query(ctx, SystestTask{}.TableName(), store.NewCond().NotDeleted(), []string{"DISTINCT branch as branch"}, &bItems)
+	// 创建新的 cond 副本，避免 GroupBy/OrderBy 相互影响
+	bCond := store.NewCond()
+	for k, v := range cond {
+		bCond[k] = v
+	}
+	err = s.store.Query(ctx, SystestTask{}.TableName(), bCond.GroupBy("branch").OrderBy("MAX(_created_time) DESC"), []string{"branch", "MAX(_created_time)"}, &bItems)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -85,9 +99,17 @@ func (s *systestStore) GetMetadataList(ctx context.Context) ([]string, []string,
 		branches = append(branches, item.Branch)
 	}
 
-	// 获取去重后的 commit
+	// 获取该模块下去重后的 commit，按最新创建时间排序
 	var cItems []commitItem
-	err = s.store.Query(ctx, SystestTask{}.TableName(), store.NewCond().NotDeleted(), []string{"DISTINCT commit as commit"}, &cItems)
+	cCond := store.NewCond()
+	for k, v := range cond {
+		cCond[k] = v
+	}
+	// 如果传入了 branch，则进一步过滤 commit
+	if branch != "" {
+		cCond = cCond.Where("branch", branch)
+	}
+	err = s.store.Query(ctx, SystestTask{}.TableName(), cCond.GroupBy("commit").OrderBy("MAX(_created_time) DESC"), []string{"commit", "MAX(_created_time)"}, &cItems)
 	if err != nil {
 		return nil, nil, nil, err
 	}

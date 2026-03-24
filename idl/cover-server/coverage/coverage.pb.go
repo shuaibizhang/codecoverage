@@ -22,16 +22,201 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ReportSelector struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Module        string                 `protobuf:"bytes,1,opt,name=module,proto3" json:"module,omitempty"`
+	Branch        string                 `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`
+	Commit        string                 `protobuf:"bytes,3,opt,name=commit,proto3" json:"commit,omitempty"`
+	Type          string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"` // "unittest", "systest", "combined" 等
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportSelector) Reset() {
+	*x = ReportSelector{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportSelector) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportSelector) ProtoMessage() {}
+
+func (x *ReportSelector) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportSelector.ProtoReflect.Descriptor instead.
+func (*ReportSelector) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ReportSelector) GetModule() string {
+	if x != nil {
+		return x.Module
+	}
+	return ""
+}
+
+func (x *ReportSelector) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *ReportSelector) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *ReportSelector) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+type MergeReportsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 基准报告：定义最终合并报告的代码版本、行号结构及基础覆盖率数据
+	// 异源合并（不同 Commit）时，其他报告的覆盖率将映射到此基准报告的源码版本上
+	BaseReport *MergeReportsRequest_ReportSource `protobuf:"bytes,1,opt,name=base_report,json=baseReport,proto3" json:"base_report,omitempty"`
+	// 待合并的其他报告列表
+	OtherReports  []*MergeReportsRequest_ReportSource `protobuf:"bytes,2,rep,name=other_reports,json=otherReports,proto3" json:"other_reports,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MergeReportsRequest) Reset() {
+	*x = MergeReportsRequest{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeReportsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeReportsRequest) ProtoMessage() {}
+
+func (x *MergeReportsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeReportsRequest.ProtoReflect.Descriptor instead.
+func (*MergeReportsRequest) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *MergeReportsRequest) GetBaseReport() *MergeReportsRequest_ReportSource {
+	if x != nil {
+		return x.BaseReport
+	}
+	return nil
+}
+
+func (x *MergeReportsRequest) GetOtherReports() []*MergeReportsRequest_ReportSource {
+	if x != nil {
+		return x.OtherReports
+	}
+	return nil
+}
+
+type MergeReportsResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	MergedReportId string                 `protobuf:"bytes,1,opt,name=merged_report_id,json=mergedReportId,proto3" json:"merged_report_id,omitempty"` // 合并后生成的临时或持久化报告 ID
+	Success        bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
+	Message        string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MergeReportsResponse) Reset() {
+	*x = MergeReportsResponse{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeReportsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeReportsResponse) ProtoMessage() {}
+
+func (x *MergeReportsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeReportsResponse.ProtoReflect.Descriptor instead.
+func (*MergeReportsResponse) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MergeReportsResponse) GetMergedReportId() string {
+	if x != nil {
+		return x.MergedReportId
+	}
+	return ""
+}
+
+func (x *MergeReportsResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *MergeReportsResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type GetMetadataListRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"` // unittest, integrate, etc.
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`     // unittest, integrate, etc.
+	Module        string                 `protobuf:"bytes,2,opt,name=module,proto3" json:"module,omitempty"` // optional, filter branches and commits by module
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"` // optional, filter commits by branch
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetMetadataListRequest) Reset() {
 	*x = GetMetadataListRequest{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[0]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +228,7 @@ func (x *GetMetadataListRequest) String() string {
 func (*GetMetadataListRequest) ProtoMessage() {}
 
 func (x *GetMetadataListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[0]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,12 +241,26 @@ func (x *GetMetadataListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetadataListRequest.ProtoReflect.Descriptor instead.
 func (*GetMetadataListRequest) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{0}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetMetadataListRequest) GetType() string {
 	if x != nil {
 		return x.Type
+	}
+	return ""
+}
+
+func (x *GetMetadataListRequest) GetModule() string {
+	if x != nil {
+		return x.Module
+	}
+	return ""
+}
+
+func (x *GetMetadataListRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
 	}
 	return ""
 }
@@ -77,7 +276,7 @@ type GetMetadataListResponse struct {
 
 func (x *GetMetadataListResponse) Reset() {
 	*x = GetMetadataListResponse{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[1]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -89,7 +288,7 @@ func (x *GetMetadataListResponse) String() string {
 func (*GetMetadataListResponse) ProtoMessage() {}
 
 func (x *GetMetadataListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[1]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -102,7 +301,7 @@ func (x *GetMetadataListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetadataListResponse.ProtoReflect.Descriptor instead.
 func (*GetMetadataListResponse) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{1}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetMetadataListResponse) GetModules() []string {
@@ -142,7 +341,7 @@ type UploadUnittestReportRequest struct {
 
 func (x *UploadUnittestReportRequest) Reset() {
 	*x = UploadUnittestReportRequest{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[2]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -154,7 +353,7 @@ func (x *UploadUnittestReportRequest) String() string {
 func (*UploadUnittestReportRequest) ProtoMessage() {}
 
 func (x *UploadUnittestReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[2]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -167,7 +366,7 @@ func (x *UploadUnittestReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadUnittestReportRequest.ProtoReflect.Descriptor instead.
 func (*UploadUnittestReportRequest) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{2}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UploadUnittestReportRequest) GetLanguage() string {
@@ -236,7 +435,7 @@ type UploadUnittestReportResponse struct {
 
 func (x *UploadUnittestReportResponse) Reset() {
 	*x = UploadUnittestReportResponse{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[3]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -248,7 +447,7 @@ func (x *UploadUnittestReportResponse) String() string {
 func (*UploadUnittestReportResponse) ProtoMessage() {}
 
 func (x *UploadUnittestReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[3]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -261,7 +460,7 @@ func (x *UploadUnittestReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadUnittestReportResponse.ProtoReflect.Descriptor instead.
 func (*UploadUnittestReportResponse) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{3}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UploadUnittestReportResponse) GetSuccess() bool {
@@ -290,7 +489,7 @@ type CoverData struct {
 
 func (x *CoverData) Reset() {
 	*x = CoverData{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[4]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -302,7 +501,7 @@ func (x *CoverData) String() string {
 func (*CoverData) ProtoMessage() {}
 
 func (x *CoverData) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[4]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -315,7 +514,7 @@ func (x *CoverData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverData.ProtoReflect.Descriptor instead.
 func (*CoverData) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{4}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CoverData) GetTotalLines() uint32 {
@@ -364,7 +563,7 @@ type UploadSystestCoverDataRequest struct {
 
 func (x *UploadSystestCoverDataRequest) Reset() {
 	*x = UploadSystestCoverDataRequest{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[5]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -376,7 +575,7 @@ func (x *UploadSystestCoverDataRequest) String() string {
 func (*UploadSystestCoverDataRequest) ProtoMessage() {}
 
 func (x *UploadSystestCoverDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[5]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -389,7 +588,7 @@ func (x *UploadSystestCoverDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadSystestCoverDataRequest.ProtoReflect.Descriptor instead.
 func (*UploadSystestCoverDataRequest) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{5}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UploadSystestCoverDataRequest) GetLanguage() string {
@@ -472,7 +671,7 @@ type UploadSystestCoverDataResponse struct {
 
 func (x *UploadSystestCoverDataResponse) Reset() {
 	*x = UploadSystestCoverDataResponse{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[6]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -484,7 +683,7 @@ func (x *UploadSystestCoverDataResponse) String() string {
 func (*UploadSystestCoverDataResponse) ProtoMessage() {}
 
 func (x *UploadSystestCoverDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[6]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -497,7 +696,7 @@ func (x *UploadSystestCoverDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadSystestCoverDataResponse.ProtoReflect.Descriptor instead.
 func (*UploadSystestCoverDataResponse) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{6}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UploadSystestCoverDataResponse) GetSuccess() bool {
@@ -526,7 +725,7 @@ type GetReportInfoRequest struct {
 
 func (x *GetReportInfoRequest) Reset() {
 	*x = GetReportInfoRequest{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[7]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -538,7 +737,7 @@ func (x *GetReportInfoRequest) String() string {
 func (*GetReportInfoRequest) ProtoMessage() {}
 
 func (x *GetReportInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[7]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -551,7 +750,7 @@ func (x *GetReportInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReportInfoRequest.ProtoReflect.Descriptor instead.
 func (*GetReportInfoRequest) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{7}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetReportInfoRequest) GetModule() string {
@@ -596,7 +795,7 @@ type MetaInfo struct {
 
 func (x *MetaInfo) Reset() {
 	*x = MetaInfo{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[8]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +807,7 @@ func (x *MetaInfo) String() string {
 func (*MetaInfo) ProtoMessage() {}
 
 func (x *MetaInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[8]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +820,7 @@ func (x *MetaInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetaInfo.ProtoReflect.Descriptor instead.
 func (*MetaInfo) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{8}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MetaInfo) GetModule() string {
@@ -676,7 +875,7 @@ type GetReportInfoResponse struct {
 
 func (x *GetReportInfoResponse) Reset() {
 	*x = GetReportInfoResponse{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[9]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -688,7 +887,7 @@ func (x *GetReportInfoResponse) String() string {
 func (*GetReportInfoResponse) ProtoMessage() {}
 
 func (x *GetReportInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[9]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +900,7 @@ func (x *GetReportInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReportInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetReportInfoResponse) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{9}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetReportInfoResponse) GetReportId() string {
@@ -729,7 +928,7 @@ type GetTreeNodesRequest struct {
 
 func (x *GetTreeNodesRequest) Reset() {
 	*x = GetTreeNodesRequest{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[10]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -741,7 +940,7 @@ func (x *GetTreeNodesRequest) String() string {
 func (*GetTreeNodesRequest) ProtoMessage() {}
 
 func (x *GetTreeNodesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[10]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -754,7 +953,7 @@ func (x *GetTreeNodesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTreeNodesRequest.ProtoReflect.Descriptor instead.
 func (*GetTreeNodesRequest) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{10}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetTreeNodesRequest) GetReportId() string {
@@ -796,7 +995,7 @@ type TreeNodeStat struct {
 
 func (x *TreeNodeStat) Reset() {
 	*x = TreeNodeStat{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[11]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +1007,7 @@ func (x *TreeNodeStat) String() string {
 func (*TreeNodeStat) ProtoMessage() {}
 
 func (x *TreeNodeStat) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[11]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +1020,7 @@ func (x *TreeNodeStat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TreeNodeStat.ProtoReflect.Descriptor instead.
 func (*TreeNodeStat) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{11}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *TreeNodeStat) GetTotalLines() uint32 {
@@ -906,7 +1105,7 @@ type TreeNode struct {
 
 func (x *TreeNode) Reset() {
 	*x = TreeNode{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[12]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -918,7 +1117,7 @@ func (x *TreeNode) String() string {
 func (*TreeNode) ProtoMessage() {}
 
 func (x *TreeNode) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[12]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -931,7 +1130,7 @@ func (x *TreeNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TreeNode.ProtoReflect.Descriptor instead.
 func (*TreeNode) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{12}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *TreeNode) GetName() string {
@@ -971,7 +1170,7 @@ type GetTreeNodesResponse struct {
 
 func (x *GetTreeNodesResponse) Reset() {
 	*x = GetTreeNodesResponse{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[13]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +1182,7 @@ func (x *GetTreeNodesResponse) String() string {
 func (*GetTreeNodesResponse) ProtoMessage() {}
 
 func (x *GetTreeNodesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[13]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +1195,7 @@ func (x *GetTreeNodesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTreeNodesResponse.ProtoReflect.Descriptor instead.
 func (*GetTreeNodesResponse) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{13}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetTreeNodesResponse) GetNodes() []*TreeNode {
@@ -1016,7 +1215,7 @@ type GetFileCoverageRequest struct {
 
 func (x *GetFileCoverageRequest) Reset() {
 	*x = GetFileCoverageRequest{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[14]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1028,7 +1227,7 @@ func (x *GetFileCoverageRequest) String() string {
 func (*GetFileCoverageRequest) ProtoMessage() {}
 
 func (x *GetFileCoverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[14]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1041,7 +1240,7 @@ func (x *GetFileCoverageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFileCoverageRequest.ProtoReflect.Descriptor instead.
 func (*GetFileCoverageRequest) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{14}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetFileCoverageRequest) GetReportId() string {
@@ -1070,7 +1269,7 @@ type GetFileCoverageResponse struct {
 
 func (x *GetFileCoverageResponse) Reset() {
 	*x = GetFileCoverageResponse{}
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[15]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1082,7 +1281,7 @@ func (x *GetFileCoverageResponse) String() string {
 func (*GetFileCoverageResponse) ProtoMessage() {}
 
 func (x *GetFileCoverageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[15]
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1095,7 +1294,7 @@ func (x *GetFileCoverageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFileCoverageResponse.ProtoReflect.Descriptor instead.
 func (*GetFileCoverageResponse) Descriptor() ([]byte, []int) {
-	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{15}
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetFileCoverageResponse) GetPath() string {
@@ -1126,13 +1325,307 @@ func (x *GetFileCoverageResponse) GetContent() string {
 	return ""
 }
 
+type GetRootCoverageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ReportId      string                 `protobuf:"bytes,1,opt,name=report_id,json=reportId,proto3" json:"report_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRootCoverageRequest) Reset() {
+	*x = GetRootCoverageRequest{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRootCoverageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRootCoverageRequest) ProtoMessage() {}
+
+func (x *GetRootCoverageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRootCoverageRequest.ProtoReflect.Descriptor instead.
+func (*GetRootCoverageRequest) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetRootCoverageRequest) GetReportId() string {
+	if x != nil {
+		return x.ReportId
+	}
+	return ""
+}
+
+type GetRootCoverageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RootNode      *TreeNode              `protobuf:"bytes,1,opt,name=root_node,json=rootNode,proto3" json:"root_node,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRootCoverageResponse) Reset() {
+	*x = GetRootCoverageResponse{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRootCoverageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRootCoverageResponse) ProtoMessage() {}
+
+func (x *GetRootCoverageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRootCoverageResponse.ProtoReflect.Descriptor instead.
+func (*GetRootCoverageResponse) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetRootCoverageResponse) GetRootNode() *TreeNode {
+	if x != nil {
+		return x.RootNode
+	}
+	return nil
+}
+
+type SearchNodesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ReportId      string                 `protobuf:"bytes,1,opt,name=report_id,json=reportId,proto3" json:"report_id,omitempty"`
+	Keyword       string                 `protobuf:"bytes,2,opt,name=keyword,proto3" json:"keyword,omitempty"`                             // 模糊匹配关键字
+	IsIncrement   bool                   `protobuf:"varint,3,opt,name=is_increment,json=isIncrement,proto3" json:"is_increment,omitempty"` // 是否只搜索有增量的节点
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchNodesRequest) Reset() {
+	*x = SearchNodesRequest{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchNodesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchNodesRequest) ProtoMessage() {}
+
+func (x *SearchNodesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchNodesRequest.ProtoReflect.Descriptor instead.
+func (*SearchNodesRequest) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SearchNodesRequest) GetReportId() string {
+	if x != nil {
+		return x.ReportId
+	}
+	return ""
+}
+
+func (x *SearchNodesRequest) GetKeyword() string {
+	if x != nil {
+		return x.Keyword
+	}
+	return ""
+}
+
+func (x *SearchNodesRequest) GetIsIncrement() bool {
+	if x != nil {
+		return x.IsIncrement
+	}
+	return false
+}
+
+type SearchNodesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nodes         []*TreeNode            `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchNodesResponse) Reset() {
+	*x = SearchNodesResponse{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchNodesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchNodesResponse) ProtoMessage() {}
+
+func (x *SearchNodesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchNodesResponse.ProtoReflect.Descriptor instead.
+func (*SearchNodesResponse) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *SearchNodesResponse) GetNodes() []*TreeNode {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+// 报告来源：支持直接使用 ID 或业务维度选择
+type MergeReportsRequest_ReportSource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Source:
+	//
+	//	*MergeReportsRequest_ReportSource_ReportId
+	//	*MergeReportsRequest_ReportSource_Selector
+	Source        isMergeReportsRequest_ReportSource_Source `protobuf_oneof:"source"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MergeReportsRequest_ReportSource) Reset() {
+	*x = MergeReportsRequest_ReportSource{}
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeReportsRequest_ReportSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeReportsRequest_ReportSource) ProtoMessage() {}
+
+func (x *MergeReportsRequest_ReportSource) ProtoReflect() protoreflect.Message {
+	mi := &file_idl_cover_server_coverage_coverage_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeReportsRequest_ReportSource.ProtoReflect.Descriptor instead.
+func (*MergeReportsRequest_ReportSource) Descriptor() ([]byte, []int) {
+	return file_idl_cover_server_coverage_coverage_proto_rawDescGZIP(), []int{1, 0}
+}
+
+func (x *MergeReportsRequest_ReportSource) GetSource() isMergeReportsRequest_ReportSource_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *MergeReportsRequest_ReportSource) GetReportId() string {
+	if x != nil {
+		if x, ok := x.Source.(*MergeReportsRequest_ReportSource_ReportId); ok {
+			return x.ReportId
+		}
+	}
+	return ""
+}
+
+func (x *MergeReportsRequest_ReportSource) GetSelector() *ReportSelector {
+	if x != nil {
+		if x, ok := x.Source.(*MergeReportsRequest_ReportSource_Selector); ok {
+			return x.Selector
+		}
+	}
+	return nil
+}
+
+type isMergeReportsRequest_ReportSource_Source interface {
+	isMergeReportsRequest_ReportSource_Source()
+}
+
+type MergeReportsRequest_ReportSource_ReportId struct {
+	ReportId string `protobuf:"bytes,1,opt,name=report_id,json=reportId,proto3,oneof"` // 报告唯一标识
+}
+
+type MergeReportsRequest_ReportSource_Selector struct {
+	Selector *ReportSelector `protobuf:"bytes,2,opt,name=selector,proto3,oneof"` // 业务维度选择器
+}
+
+func (*MergeReportsRequest_ReportSource_ReportId) isMergeReportsRequest_ReportSource_Source() {}
+
+func (*MergeReportsRequest_ReportSource_Selector) isMergeReportsRequest_ReportSource_Source() {}
+
 var File_idl_cover_server_coverage_coverage_proto protoreflect.FileDescriptor
 
 const file_idl_cover_server_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
-	"(idl/cover-server/coverage/coverage.proto\x12\x0fapi.v1.coverage\x1a\x1cgoogle/api/annotations.proto\",\n" +
+	"(idl/cover-server/coverage/coverage.proto\x12\x0fapi.v1.coverage\x1a\x1cgoogle/api/annotations.proto\"l\n" +
+	"\x0eReportSelector\x12\x16\n" +
+	"\x06module\x18\x01 \x01(\tR\x06module\x12\x16\n" +
+	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x16\n" +
+	"\x06commit\x18\x03 \x01(\tR\x06commit\x12\x12\n" +
+	"\x04type\x18\x04 \x01(\tR\x04type\"\xb9\x02\n" +
+	"\x13MergeReportsRequest\x12R\n" +
+	"\vbase_report\x18\x01 \x01(\v21.api.v1.coverage.MergeReportsRequest.ReportSourceR\n" +
+	"baseReport\x12V\n" +
+	"\rother_reports\x18\x02 \x03(\v21.api.v1.coverage.MergeReportsRequest.ReportSourceR\fotherReports\x1av\n" +
+	"\fReportSource\x12\x1d\n" +
+	"\treport_id\x18\x01 \x01(\tH\x00R\breportId\x12=\n" +
+	"\bselector\x18\x02 \x01(\v2\x1f.api.v1.coverage.ReportSelectorH\x00R\bselectorB\b\n" +
+	"\x06source\"t\n" +
+	"\x14MergeReportsResponse\x12(\n" +
+	"\x10merged_report_id\x18\x01 \x01(\tR\x0emergedReportId\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\\\n" +
 	"\x16GetMetadataListRequest\x12\x12\n" +
-	"\x04type\x18\x01 \x01(\tR\x04type\"i\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
+	"\x06module\x18\x02 \x01(\tR\x06module\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\"i\n" +
 	"\x17GetMetadataListResponse\x12\x18\n" +
 	"\amodules\x18\x01 \x03(\tR\amodules\x12\x1a\n" +
 	"\bbranches\x18\x02 \x03(\tR\bbranches\x12\x18\n" +
@@ -1229,14 +1722,27 @@ const file_idl_cover_server_coverage_coverage_proto_rawDesc = "" +
 	"\x05lines\x18\x02 \x03(\rR\x05lines\x12\x1d\n" +
 	"\n" +
 	"file_flags\x18\x03 \x01(\rR\tfileFlags\x12\x18\n" +
-	"\acontent\x18\x04 \x01(\tR\acontent2\xd7\x06\n" +
-	"\x0fCoverageService\x12\x7f\n" +
-	"\rGetReportInfo\x12%.api.v1.coverage.GetReportInfoRequest\x1a&.api.v1.coverage.GetReportInfoResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/coverage/report\x12z\n" +
-	"\fGetTreeNodes\x12$.api.v1.coverage.GetTreeNodesRequest\x1a%.api.v1.coverage.GetTreeNodesResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/api/v1/coverage/tree\x12\x83\x01\n" +
-	"\x0fGetFileCoverage\x12'.api.v1.coverage.GetFileCoverageRequest\x1a(.api.v1.coverage.GetFileCoverageResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/api/v1/coverage/file\x12\x87\x01\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\"5\n" +
+	"\x16GetRootCoverageRequest\x12\x1b\n" +
+	"\treport_id\x18\x01 \x01(\tR\breportId\"Q\n" +
+	"\x17GetRootCoverageResponse\x126\n" +
+	"\troot_node\x18\x01 \x01(\v2\x19.api.v1.coverage.TreeNodeR\brootNode\"n\n" +
+	"\x12SearchNodesRequest\x12\x1b\n" +
+	"\treport_id\x18\x01 \x01(\tR\breportId\x12\x18\n" +
+	"\akeyword\x18\x02 \x01(\tR\akeyword\x12!\n" +
+	"\fis_increment\x18\x03 \x01(\bR\visIncrement\"F\n" +
+	"\x13SearchNodesResponse\x12/\n" +
+	"\x05nodes\x18\x01 \x03(\v2\x19.api.v1.coverage.TreeNodeR\x05nodes2\xe8\t\n" +
+	"\x0fCoverageService\x12\x82\x01\n" +
+	"\rGetReportInfo\x12%.api.v1.coverage.GetReportInfoRequest\x1a&.api.v1.coverage.GetReportInfoResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/coverage/report\x12}\n" +
+	"\fGetTreeNodes\x12$.api.v1.coverage.GetTreeNodesRequest\x1a%.api.v1.coverage.GetTreeNodesResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/coverage/tree\x12\x86\x01\n" +
+	"\x0fGetFileCoverage\x12'.api.v1.coverage.GetFileCoverageRequest\x1a(.api.v1.coverage.GetFileCoverageResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/coverage/file\x12\x87\x01\n" +
 	"\x0fGetMetadataList\x12'.api.v1.coverage.GetMetadataListRequest\x1a(.api.v1.coverage.GetMetadataListResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/api/v1/coverage/metadata\x12\x97\x01\n" +
 	"\x14UploadUnittestReport\x12,.api.v1.coverage.UploadUnittestReportRequest\x1a-.api.v1.coverage.UploadUnittestReportResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/unittest/upload\x12\x9c\x01\n" +
-	"\x16UploadSystestCoverData\x12..api.v1.coverage.UploadSystestCoverDataRequest\x1a/.api.v1.coverage.UploadSystestCoverDataResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/systest/uploadBIZGgithub.com/shuaibizhang/codecoverage/idl/cover-server/coverage;coverageb\x06proto3"
+	"\x16UploadSystestCoverData\x12..api.v1.coverage.UploadSystestCoverDataRequest\x1a/.api.v1.coverage.UploadSystestCoverDataResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/systest/upload\x12~\n" +
+	"\fMergeReports\x12$.api.v1.coverage.MergeReportsRequest\x1a%.api.v1.coverage.MergeReportsResponse\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/api/v1/coverage/merge\x12\x86\x01\n" +
+	"\x0fGetRootCoverage\x12'.api.v1.coverage.GetRootCoverageRequest\x1a(.api.v1.coverage.GetRootCoverageResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/coverage/root\x12|\n" +
+	"\vSearchNodes\x12#.api.v1.coverage.SearchNodesRequest\x1a$.api.v1.coverage.SearchNodesResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/api/v1/coverage/searchBIZGgithub.com/shuaibizhang/codecoverage/idl/cover-server/coverage;coverageb\x06proto3"
 
 var (
 	file_idl_cover_server_coverage_coverage_proto_rawDescOnce sync.Once
@@ -1250,49 +1756,68 @@ func file_idl_cover_server_coverage_coverage_proto_rawDescGZIP() []byte {
 	return file_idl_cover_server_coverage_coverage_proto_rawDescData
 }
 
-var file_idl_cover_server_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_idl_cover_server_coverage_coverage_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_idl_cover_server_coverage_coverage_proto_goTypes = []any{
-	(*GetMetadataListRequest)(nil),         // 0: api.v1.coverage.GetMetadataListRequest
-	(*GetMetadataListResponse)(nil),        // 1: api.v1.coverage.GetMetadataListResponse
-	(*UploadUnittestReportRequest)(nil),    // 2: api.v1.coverage.UploadUnittestReportRequest
-	(*UploadUnittestReportResponse)(nil),   // 3: api.v1.coverage.UploadUnittestReportResponse
-	(*CoverData)(nil),                      // 4: api.v1.coverage.CoverData
-	(*UploadSystestCoverDataRequest)(nil),  // 5: api.v1.coverage.UploadSystestCoverDataRequest
-	(*UploadSystestCoverDataResponse)(nil), // 6: api.v1.coverage.UploadSystestCoverDataResponse
-	(*GetReportInfoRequest)(nil),           // 7: api.v1.coverage.GetReportInfoRequest
-	(*MetaInfo)(nil),                       // 8: api.v1.coverage.MetaInfo
-	(*GetReportInfoResponse)(nil),          // 9: api.v1.coverage.GetReportInfoResponse
-	(*GetTreeNodesRequest)(nil),            // 10: api.v1.coverage.GetTreeNodesRequest
-	(*TreeNodeStat)(nil),                   // 11: api.v1.coverage.TreeNodeStat
-	(*TreeNode)(nil),                       // 12: api.v1.coverage.TreeNode
-	(*GetTreeNodesResponse)(nil),           // 13: api.v1.coverage.GetTreeNodesResponse
-	(*GetFileCoverageRequest)(nil),         // 14: api.v1.coverage.GetFileCoverageRequest
-	(*GetFileCoverageResponse)(nil),        // 15: api.v1.coverage.GetFileCoverageResponse
-	nil,                                    // 16: api.v1.coverage.UploadSystestCoverDataRequest.CoverDataEntry
+	(*ReportSelector)(nil),                   // 0: api.v1.coverage.ReportSelector
+	(*MergeReportsRequest)(nil),              // 1: api.v1.coverage.MergeReportsRequest
+	(*MergeReportsResponse)(nil),             // 2: api.v1.coverage.MergeReportsResponse
+	(*GetMetadataListRequest)(nil),           // 3: api.v1.coverage.GetMetadataListRequest
+	(*GetMetadataListResponse)(nil),          // 4: api.v1.coverage.GetMetadataListResponse
+	(*UploadUnittestReportRequest)(nil),      // 5: api.v1.coverage.UploadUnittestReportRequest
+	(*UploadUnittestReportResponse)(nil),     // 6: api.v1.coverage.UploadUnittestReportResponse
+	(*CoverData)(nil),                        // 7: api.v1.coverage.CoverData
+	(*UploadSystestCoverDataRequest)(nil),    // 8: api.v1.coverage.UploadSystestCoverDataRequest
+	(*UploadSystestCoverDataResponse)(nil),   // 9: api.v1.coverage.UploadSystestCoverDataResponse
+	(*GetReportInfoRequest)(nil),             // 10: api.v1.coverage.GetReportInfoRequest
+	(*MetaInfo)(nil),                         // 11: api.v1.coverage.MetaInfo
+	(*GetReportInfoResponse)(nil),            // 12: api.v1.coverage.GetReportInfoResponse
+	(*GetTreeNodesRequest)(nil),              // 13: api.v1.coverage.GetTreeNodesRequest
+	(*TreeNodeStat)(nil),                     // 14: api.v1.coverage.TreeNodeStat
+	(*TreeNode)(nil),                         // 15: api.v1.coverage.TreeNode
+	(*GetTreeNodesResponse)(nil),             // 16: api.v1.coverage.GetTreeNodesResponse
+	(*GetFileCoverageRequest)(nil),           // 17: api.v1.coverage.GetFileCoverageRequest
+	(*GetFileCoverageResponse)(nil),          // 18: api.v1.coverage.GetFileCoverageResponse
+	(*GetRootCoverageRequest)(nil),           // 19: api.v1.coverage.GetRootCoverageRequest
+	(*GetRootCoverageResponse)(nil),          // 20: api.v1.coverage.GetRootCoverageResponse
+	(*SearchNodesRequest)(nil),               // 21: api.v1.coverage.SearchNodesRequest
+	(*SearchNodesResponse)(nil),              // 22: api.v1.coverage.SearchNodesResponse
+	(*MergeReportsRequest_ReportSource)(nil), // 23: api.v1.coverage.MergeReportsRequest.ReportSource
+	nil,                                      // 24: api.v1.coverage.UploadSystestCoverDataRequest.CoverDataEntry
 }
 var file_idl_cover_server_coverage_coverage_proto_depIdxs = []int32{
-	16, // 0: api.v1.coverage.UploadSystestCoverDataRequest.cover_data:type_name -> api.v1.coverage.UploadSystestCoverDataRequest.CoverDataEntry
-	8,  // 1: api.v1.coverage.GetReportInfoResponse.meta:type_name -> api.v1.coverage.MetaInfo
-	11, // 2: api.v1.coverage.TreeNode.stat:type_name -> api.v1.coverage.TreeNodeStat
-	12, // 3: api.v1.coverage.GetTreeNodesResponse.nodes:type_name -> api.v1.coverage.TreeNode
-	4,  // 4: api.v1.coverage.UploadSystestCoverDataRequest.CoverDataEntry.value:type_name -> api.v1.coverage.CoverData
-	7,  // 5: api.v1.coverage.CoverageService.GetReportInfo:input_type -> api.v1.coverage.GetReportInfoRequest
-	10, // 6: api.v1.coverage.CoverageService.GetTreeNodes:input_type -> api.v1.coverage.GetTreeNodesRequest
-	14, // 7: api.v1.coverage.CoverageService.GetFileCoverage:input_type -> api.v1.coverage.GetFileCoverageRequest
-	0,  // 8: api.v1.coverage.CoverageService.GetMetadataList:input_type -> api.v1.coverage.GetMetadataListRequest
-	2,  // 9: api.v1.coverage.CoverageService.UploadUnittestReport:input_type -> api.v1.coverage.UploadUnittestReportRequest
-	5,  // 10: api.v1.coverage.CoverageService.UploadSystestCoverData:input_type -> api.v1.coverage.UploadSystestCoverDataRequest
-	9,  // 11: api.v1.coverage.CoverageService.GetReportInfo:output_type -> api.v1.coverage.GetReportInfoResponse
-	13, // 12: api.v1.coverage.CoverageService.GetTreeNodes:output_type -> api.v1.coverage.GetTreeNodesResponse
-	15, // 13: api.v1.coverage.CoverageService.GetFileCoverage:output_type -> api.v1.coverage.GetFileCoverageResponse
-	1,  // 14: api.v1.coverage.CoverageService.GetMetadataList:output_type -> api.v1.coverage.GetMetadataListResponse
-	3,  // 15: api.v1.coverage.CoverageService.UploadUnittestReport:output_type -> api.v1.coverage.UploadUnittestReportResponse
-	6,  // 16: api.v1.coverage.CoverageService.UploadSystestCoverData:output_type -> api.v1.coverage.UploadSystestCoverDataResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	23, // 0: api.v1.coverage.MergeReportsRequest.base_report:type_name -> api.v1.coverage.MergeReportsRequest.ReportSource
+	23, // 1: api.v1.coverage.MergeReportsRequest.other_reports:type_name -> api.v1.coverage.MergeReportsRequest.ReportSource
+	24, // 2: api.v1.coverage.UploadSystestCoverDataRequest.cover_data:type_name -> api.v1.coverage.UploadSystestCoverDataRequest.CoverDataEntry
+	11, // 3: api.v1.coverage.GetReportInfoResponse.meta:type_name -> api.v1.coverage.MetaInfo
+	14, // 4: api.v1.coverage.TreeNode.stat:type_name -> api.v1.coverage.TreeNodeStat
+	15, // 5: api.v1.coverage.GetTreeNodesResponse.nodes:type_name -> api.v1.coverage.TreeNode
+	15, // 6: api.v1.coverage.GetRootCoverageResponse.root_node:type_name -> api.v1.coverage.TreeNode
+	15, // 7: api.v1.coverage.SearchNodesResponse.nodes:type_name -> api.v1.coverage.TreeNode
+	0,  // 8: api.v1.coverage.MergeReportsRequest.ReportSource.selector:type_name -> api.v1.coverage.ReportSelector
+	7,  // 9: api.v1.coverage.UploadSystestCoverDataRequest.CoverDataEntry.value:type_name -> api.v1.coverage.CoverData
+	10, // 10: api.v1.coverage.CoverageService.GetReportInfo:input_type -> api.v1.coverage.GetReportInfoRequest
+	13, // 11: api.v1.coverage.CoverageService.GetTreeNodes:input_type -> api.v1.coverage.GetTreeNodesRequest
+	17, // 12: api.v1.coverage.CoverageService.GetFileCoverage:input_type -> api.v1.coverage.GetFileCoverageRequest
+	3,  // 13: api.v1.coverage.CoverageService.GetMetadataList:input_type -> api.v1.coverage.GetMetadataListRequest
+	5,  // 14: api.v1.coverage.CoverageService.UploadUnittestReport:input_type -> api.v1.coverage.UploadUnittestReportRequest
+	8,  // 15: api.v1.coverage.CoverageService.UploadSystestCoverData:input_type -> api.v1.coverage.UploadSystestCoverDataRequest
+	1,  // 16: api.v1.coverage.CoverageService.MergeReports:input_type -> api.v1.coverage.MergeReportsRequest
+	19, // 17: api.v1.coverage.CoverageService.GetRootCoverage:input_type -> api.v1.coverage.GetRootCoverageRequest
+	21, // 18: api.v1.coverage.CoverageService.SearchNodes:input_type -> api.v1.coverage.SearchNodesRequest
+	12, // 19: api.v1.coverage.CoverageService.GetReportInfo:output_type -> api.v1.coverage.GetReportInfoResponse
+	16, // 20: api.v1.coverage.CoverageService.GetTreeNodes:output_type -> api.v1.coverage.GetTreeNodesResponse
+	18, // 21: api.v1.coverage.CoverageService.GetFileCoverage:output_type -> api.v1.coverage.GetFileCoverageResponse
+	4,  // 22: api.v1.coverage.CoverageService.GetMetadataList:output_type -> api.v1.coverage.GetMetadataListResponse
+	6,  // 23: api.v1.coverage.CoverageService.UploadUnittestReport:output_type -> api.v1.coverage.UploadUnittestReportResponse
+	9,  // 24: api.v1.coverage.CoverageService.UploadSystestCoverData:output_type -> api.v1.coverage.UploadSystestCoverDataResponse
+	2,  // 25: api.v1.coverage.CoverageService.MergeReports:output_type -> api.v1.coverage.MergeReportsResponse
+	20, // 26: api.v1.coverage.CoverageService.GetRootCoverage:output_type -> api.v1.coverage.GetRootCoverageResponse
+	22, // 27: api.v1.coverage.CoverageService.SearchNodes:output_type -> api.v1.coverage.SearchNodesResponse
+	19, // [19:28] is the sub-list for method output_type
+	10, // [10:19] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_idl_cover_server_coverage_coverage_proto_init() }
@@ -1300,13 +1825,17 @@ func file_idl_cover_server_coverage_coverage_proto_init() {
 	if File_idl_cover_server_coverage_coverage_proto != nil {
 		return
 	}
+	file_idl_cover_server_coverage_coverage_proto_msgTypes[23].OneofWrappers = []any{
+		(*MergeReportsRequest_ReportSource_ReportId)(nil),
+		(*MergeReportsRequest_ReportSource_Selector)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_idl_cover_server_coverage_coverage_proto_rawDesc), len(file_idl_cover_server_coverage_coverage_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

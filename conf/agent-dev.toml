@@ -1,5 +1,5 @@
 [agent]
 addr = ":2039"
-cover_server_addr = "49.233.216.158:18080"
+cover_server_addr = "127.0.0.1:28080"
 
 

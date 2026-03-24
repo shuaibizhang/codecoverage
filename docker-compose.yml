@@ -18,7 +18,8 @@ services:
       - LOG_OUTPUT=both
       - LOG_FILE_PATH=/app/logs/cover-server.log
     ports:
-      - "18080:8080"
+      - "28080:28080"
+      - "29090:29090"
     volumes:
       - ./logs/server:/app/logs
     networks:

@@ -19,11 +19,17 @@ var (
 )
 
 type Config struct {
+	ServerConfig ServerConfig        `mapstructure:"server" yaml:"server"`
 	OssConfig    oss.Config          `mapstructure:"oss" yaml:"oss"`
 	GithubConfig GithubConfig        `mapstructure:"github" yaml:"github"`
 	DbConfig     db.Config           `mapstructure:"mysql" yaml:"mysql"`
 	AgentConfig  AgentConfig         `mapstructure:"agent" yaml:"agent"`
 	ApolloConfig apollo.ApolloConfig `mapstructure:"apollo" yaml:"apollo"` // 新增 Apollo 配置
+}
+
+type ServerConfig struct {
+	GrpcAddr string `mapstructure:"grpc_addr" yaml:"grpc_addr"`
+	HttpAddr string `mapstructure:"http_addr" yaml:"http_addr"`
 }
 
 type AgentConfig struct {

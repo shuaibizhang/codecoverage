@@ -12,6 +12,7 @@ type TreeNode interface {
 	Name() string           // 节点名称
 	Path() string           // 节点完整路径
 	GetStat() *TreeNodeData // 获取节点的统计数据
+	HasIncrement() bool     // 是否包含增量数据 (高性能检查)
 	Add(child TreeNode)     // 添加子节点
 	Remove(child TreeNode)  // 删除子节点
 
@@ -26,6 +27,7 @@ type DirNode struct {
 	fullPath string
 	children []TreeNode // 组合：持有子节点
 	stat     TreeNodeData
+	hasIncr  bool // 缓存增量标记
 }
 
 func NewDirNode(name, fullPath string) *DirNode {
@@ -33,6 +35,7 @@ func NewDirNode(name, fullPath string) *DirNode {
 		name:     name,
 		fullPath: fullPath,
 		children: make([]TreeNode, 0),
+		hasIncr:  false,
 	}
 }
 
@@ -40,8 +43,15 @@ func (d *DirNode) Name() string { return d.name }
 func (d *DirNode) Path() string { return d.fullPath }
 func (d *DirNode) IsDir() bool  { return true }
 
+func (d *DirNode) HasIncrement() bool {
+	return d.hasIncr
+}
+
 func (d *DirNode) Add(child TreeNode) {
 	d.children = append(d.children, child)
+	if child.HasIncrement() {
+		d.hasIncr = true
+	}
 }
 
 func (d *DirNode) Remove(child TreeNode) {
@@ -87,6 +97,10 @@ func NewFileNode(name, fullPath string, stat TreeNodeData) *FileNode {
 func (f *FileNode) Name() string { return f.name }
 func (f *FileNode) Path() string { return f.fullPath }
 func (f *FileNode) IsDir() bool  { return false }
+
+func (f *FileNode) HasIncrement() bool {
+	return f.stat.HasIncrement
+}
 
 func (f *FileNode) GetStat() *TreeNodeData {
 	f.stat.Name = f.name

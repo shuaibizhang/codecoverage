@@ -1,5 +1,13 @@
 package tree
 
+const (
+	// uint32 编码掩码
+	MaskInstrLine  uint32 = 1 << 31    // 1 << 31 位为是否是指令行的标识位
+	MaskIncrLine   uint32 = 1 << 30    // 1 << 30 位为是否是增量行的标识位
+	MaskCoverCount uint32 = 0x3FFFFFFF // 其余 30 位为覆盖次数掩码
+	MaxCoverCount  int32  = 0x3FFFFFFF // 最大覆盖次数 (1073741823)
+)
+
 type TreeNodeData struct {
 	Name  string
 	Path  string

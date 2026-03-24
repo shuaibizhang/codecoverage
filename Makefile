@@ -20,7 +20,7 @@ all: cover-server cover-agent cover-cli
 # ================== 代码生成 ===================
 proto:
 	@echo "Generating proto code..."
-	protoc -I. -I./third_party \
+	PATH=$(PATH):$(shell go env GOPATH)/bin protoc -I. -I./third_party \
 		--go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		--grpc-gateway_out=. --grpc-gateway_opt=paths=source_relative \
@@ -83,13 +83,13 @@ test-report:
 	@echo "Running coverage flow test..."
 	go test -v uint_cover_test.go
 
-# 端口转发，18080 端口映射到本地 8080 端口 （服务未部署时使用）
+# 端口转发，18080 端口映射到本地 28080 端口 （服务未部署时使用）
 # 服务部署后，无需使用
 remote_port_forward:
 	@echo "Stopping existing SSH tunnels..."
-	-pkill -f "ssh -fCNR 0.0.0.0:18080"
+	-pkill -f "ssh -fCNR 0.0.0.0:28080"
 	@echo "Starting enhanced SSH tunnel with keepalive..."
-	ssh -fCNR 0.0.0.0:18080:localhost:8080 \
+	ssh -fCNR 0.0.0.0:18080:localhost:28080 \
 		-o ServerAliveInterval=30 \
 		-o ServerAliveCountMax=3 \
 		-o ExitOnForwardFailure=yes \

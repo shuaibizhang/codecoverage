@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CoverageTree } from './CoverageTree';
 import { SourceView } from './SourceView';
-import { Layout, ShieldCheck, Database, Calendar, ChevronRight, Activity, Search, RefreshCw, Layers, ChevronDown, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { getReportInfo, getTreeNodes, getFileCoverage, getMetadataList } from './api';
+import { MergeModal } from './MergeModal';
+import { Layout, ShieldCheck, Database, Activity, Search, RefreshCw, Layers, ChevronDown, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, GitMerge } from 'lucide-react';
+import { getReportInfo, getFileCoverage, getMetadataList, getRootCoverage, searchNodes } from './api';
 import { NodeType, type ReportInfo, type TreeNode, type FileCoverage } from './types';
 
 const TEST_TYPES = [
@@ -31,90 +32,219 @@ function App() {
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [fileData, setFileData] = useState<FileCoverage | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
 
-  const fetchMetadata = async (type: string) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [matchedPaths, setMatchedPaths] = useState<Set<string> | undefined>(undefined);
+  const [ancestorPaths, setAncestorPaths] = useState<Set<string> | undefined>(undefined);
+  const [searchChildrenMap, setSearchChildrenMap] = useState<Map<string, TreeNode[]> | undefined>(undefined);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // 搜索防抖
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) {
+        performSearch(searchQuery);
+      } else {
+        setMatchedPaths(undefined);
+        setAncestorPaths(undefined);
+        setSearchChildrenMap(undefined);
+      }
+    }, 300); // 300ms 防抖
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, isIncrement]);
+
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim() || !reportInfo || !rootNode) return;
+
+    setIsSearching(true);
     try {
-      setLoading(true);
-      // 重置之前的状态
-      setMetadata({ modules: [], branches: [], commits: [] });
-      setModule("");
-      setBranch("");
-      setCommit("");
-      setReportInfo(null);
-      setRootNode(null);
-      setSelectedPath(null);
-      setSelectedNode(null);
-      setFileData(null);
+      const results = await searchNodes(reportInfo.report_id, query, isIncrement);
 
-      const data = await getMetadataList(type);
-      setMetadata(data);
-      if (data.modules.length > 0) setModule(data.modules[0]);
-      if (data.branches.length > 0) setBranch(data.branches[0]);
-      if (data.commits.length > 0) setCommit(data.commits[0]);
+      const matched = new Set<string>();
+      const ancestors = new Set<string>();
+      const childrenMap = new Map<string, TreeNode[]>();
+
+      // 确保根节点始终作为祖先被展开
+      ancestors.add(rootNode.path);
+
+      results.forEach(node => {
+        matched.add(node.path);
+
+        if (node.path === rootNode.path) return;
+
+        let parentPath = "";
+        const lastSlashIndex = node.path.lastIndexOf("/");
+        if (lastSlashIndex === -1) {
+            // 没有斜杠，说明它是根节点的直接子节点
+            parentPath = rootNode.path;
+        } else {
+            // 有斜杠，截取最后一个斜杠前面的部分作为父节点路径
+            parentPath = node.path.substring(0, lastSlashIndex);
+        }
+
+        if (!childrenMap.has(parentPath)) {
+            childrenMap.set(parentPath, []);
+        }
+        
+        // 避免重复添加
+        if (!childrenMap.get(parentPath)!.some(c => c.path === node.path)) {
+            childrenMap.get(parentPath)!.push(node);
+        }
+        
+        ancestors.add(parentPath);
+      });
+
+      setMatchedPaths(matched);
+      setAncestorPaths(ancestors);
+      setSearchChildrenMap(childrenMap);
     } catch (err) {
-      console.error("Failed to fetch metadata:", err);
-      setError("获取元数据失败");
+      console.error("Search failed:", err);
     } finally {
-      setLoading(false);
+      setIsSearching(false);
     }
+  }, [isIncrement, reportInfo, rootNode]);
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
   };
 
+  // 1. 当测试类型改变时，获取模块列表
   useEffect(() => {
-    fetchMetadata(testType);
+    let active = true;
+    const fetchModules = async () => {
+      try {
+        setLoading(true);
+        const data = await getMetadataList(testType);
+        if (!active) return;
+        setMetadata(prev => ({ ...prev, modules: data.modules }));
+        if (data.modules.length > 0) {
+          if (!module || !data.modules.includes(module)) {
+            setModule(data.modules[0]);
+          }
+        } else {
+          setModule("");
+          setBranch("");
+          setCommit("");
+          setMetadata({ modules: [], branches: [], commits: [] });
+        }
+      } catch (err) {
+        console.error("Failed to fetch modules:", err);
+        setError("获取模块列表失败");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchModules();
+    return () => { active = false; };
   }, [testType]);
 
-  const fetchReport = async () => {
+  // 2. 当模块改变时，刷新该模块下的分支列表
+  useEffect(() => {
+    if (!module) return;
+    let active = true;
+    const fetchBranches = async () => {
+      try {
+        setLoading(true);
+        const data = await getMetadataList(testType, module);
+        if (!active) return;
+        setMetadata(prev => ({ ...prev, branches: data.branches }));
+        if (data.branches.length > 0) {
+          if (!branch || !data.branches.includes(branch)) {
+            setBranch(data.branches[0]);
+          }
+        } else {
+          setBranch("");
+          setCommit("");
+          setMetadata(prev => ({ ...prev, branches: [], commits: [] }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch branches:", err);
+        setError("获取分支列表失败");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchBranches();
+    return () => { active = false; };
+  }, [testType, module]);
+
+  // 3. 当分支改变时，刷新该分支下的提交列表
+  useEffect(() => {
+    if (!module || !branch) return;
+    let active = true;
+    const fetchCommits = async () => {
+      try {
+        setLoading(true);
+        const data = await getMetadataList(testType, module, branch);
+        if (!active) return;
+        setMetadata(prev => ({ ...prev, commits: data.commits }));
+        if (data.commits.length > 0) {
+          if (!commit || !data.commits.includes(commit)) {
+            setCommit(data.commits[0]);
+          }
+        } else {
+          setCommit("");
+          setMetadata(prev => ({ ...prev, commits: [] }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch commits:", err);
+        setError("获取提交列表失败");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchCommits();
+    return () => { active = false; };
+  }, [testType, module, branch]);
+
+  const handleNodeClick = useCallback(async (node: TreeNode) => {
+    setSelectedNode(node);
+    if (node.type === NodeType.File) {
+      setSelectedPath(node.path);
+      try {
+        setLoading(true);
+        const data = await getFileCoverage(reportInfo?.report_id || "", node.path);
+        setFileData(data);
+      } catch (err) {
+        setError("获取文件详情失败");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setSelectedPath(null);
+      setFileData(null);
+    }
+  }, [reportInfo?.report_id]);
+
+  const selectedNodeRef = React.useRef(selectedNode);
+  const selectedPathRef = React.useRef(selectedPath);
+  selectedNodeRef.current = selectedNode;
+  selectedPathRef.current = selectedPath;
+
+  const fetchReportRef = React.useRef<string>("");
+  const fetchReport = useCallback(async () => {
+    const reportKey = `${testType}-${module}-${branch}-${commit}`;
+    if (reportKey === fetchReportRef.current) return;
     if (!module || !branch || !commit) return;
+
+    fetchReportRef.current = reportKey;
     try {
       setLoading(true);
       setError(null);
       const info = await getReportInfo(testType, module, branch, commit);
       setReportInfo(info);
 
-      const nodes = await getTreeNodes(info.report_id, "*", isIncrement);
-      if (nodes.length > 0) {
-        const root: TreeNode = {
-          name: "root",
-          path: "*",
-          type: NodeType.Dir,
-          stat: nodes[0].stat,
-          children: nodes
-        };
-
-        const firstNode = nodes[0];
-        if (nodes.length === 1 && firstNode.type === NodeType.Dir) {
-          root.stat = firstNode.stat;
-        } else {
-          const aggregateStat = nodes.reduce((acc, node) => ({
-            total_lines: acc.total_lines + node.stat.total_lines,
-            instr_lines: acc.instr_lines + node.stat.instr_lines,
-            cover_lines: acc.cover_lines + node.stat.cover_lines,
-            coverage: 0,
-            add_lines: acc.add_lines + node.stat.add_lines,
-            delete_lines: acc.delete_lines + node.stat.delete_lines,
-            incr_instr_lines: acc.incr_instr_lines + node.stat.incr_instr_lines,
-            incr_cover_lines: acc.incr_cover_lines + node.stat.incr_cover_lines,
-            incr_coverage: 0,
-            has_increment: acc.has_increment || node.stat.has_increment
-          }), {
-            total_lines: 0, instr_lines: 0, cover_lines: 0, coverage: 0,
-            add_lines: 0, delete_lines: 0, incr_instr_lines: 0, incr_cover_lines: 0, incr_coverage: 0,
-            has_increment: false
-          });
-          if (aggregateStat.instr_lines > 0) {
-            aggregateStat.coverage = Math.round((aggregateStat.cover_lines / aggregateStat.instr_lines) * 100);
-          }
-          if (aggregateStat.incr_instr_lines > 0) {
-            aggregateStat.incr_coverage = Math.round((aggregateStat.incr_cover_lines / aggregateStat.incr_instr_lines) * 100);
-          }
-          root.stat = aggregateStat;
-        }
+      const root = await getRootCoverage(info.report_id);
+      if (root) {
         setRootNode(root);
-        if (!selectedNode) {
+        if (!selectedNodeRef.current || (selectedPathRef.current && !selectedPathRef.current.startsWith(root.path))) {
           setSelectedNode(root);
+          setSelectedPath(root.path);
         }
       } else {
         setRootNode(null);
@@ -129,32 +259,13 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [testType, module, branch, commit]);
 
   useEffect(() => {
     if (module && branch && commit) {
       fetchReport();
     }
-  }, [module, branch, commit, isIncrement]);
-
-  const handleNodeClick = async (node: TreeNode) => {
-    setSelectedNode(node);
-    if (node.type === NodeType.File) {
-      setSelectedPath(node.path);
-      if (reportInfo) {
-        try {
-          const data = await getFileCoverage(reportInfo.report_id, node.path);
-          setFileData(data);
-        } catch (err) {
-          console.error("Failed to fetch file coverage:", err);
-          setFileData(null);
-        }
-      }
-    } else {
-      setSelectedPath(null);
-      setFileData(null);
-    }
-  };
+  }, [module, branch, commit, fetchReport]);
 
   const StatItem = ({ label, value, subLabel, colorClass = "text-gray-300", large = false }: any) => (
     <div 
@@ -239,9 +350,32 @@ function App() {
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             </button>
+            <button 
+              onClick={() => setIsMergeModalOpen(true)}
+              disabled={!module || !branch || !commit}
+              className={`bg-[#161b22] border border-gray-700/50 p-2 rounded-lg transition-all shadow-md active:scale-95 flex items-center space-x-2 ${
+                !module || !branch || !commit 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'hover:bg-blue-600 hover:border-blue-500 text-gray-400 hover:text-white'
+              }`}
+              title="合并报告"
+            >
+              <GitMerge size={14} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">合并报告</span>
+            </button>
           </div>
         </div>
       </header>
+
+      <MergeModal 
+        isOpen={isMergeModalOpen}
+        onClose={() => setIsMergeModalOpen(false)}
+        baseReport={{ module, branch, commit, type: testType }}
+        testTypes={TEST_TYPES}
+        onMergeSuccess={() => {
+          fetchReport();
+        }}
+      />
 
       {/* 覆盖率概览通栏 - 大尺寸展示 */}
       {!isMaximized && (
@@ -259,7 +393,7 @@ function App() {
                     {displayNode.name === "root" ? "统计范围" : "当前选中节点"}
                   </div>
                   <div className={`text-xl font-black truncate max-w-[300px] tracking-tight ${isIncrement ? 'text-blue-400' : 'text-green-500'}`} title={displayNode.path}>
-                    {displayNode.name === "root" ? "项目全域统计" : displayNode.name}
+                    {displayNode.name === "root" ? "root" : displayNode.name}
                   </div>
                   <div className="text-[10px] text-gray-500 mt-1.5 font-mono truncate max-w-[300px] bg-[#0d1117] px-2 py-0.5 rounded border border-gray-800 w-fit">{displayNode.path}</div>
                 </div>
@@ -335,13 +469,34 @@ function App() {
       <main className="flex flex-grow overflow-hidden bg-[#0d1117]">
         {isSidebarOpen && !isMaximized && (
           <aside className="w-[340px] shrink-0 h-full flex flex-col border-r border-gray-800 bg-[#0d1117] z-10 transition-all duration-300">
-            <CoverageTree 
-              rootNode={rootNode} 
-              onNodeClick={handleNodeClick} 
-              selectedPath={selectedNode?.path || null}
-              reportId={reportInfo?.report_id || ""}
-              isIncrement={isIncrement}
-            />
+            {/* 搜索框 */}
+            <div className="p-3 border-b border-gray-800 bg-[#161b22]">
+              <div className="relative group">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                <input 
+                  type="text"
+                  placeholder="搜索文件或目录..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full bg-[#0d1117] border border-gray-700 rounded-md py-1.5 pl-9 pr-3 text-xs text-gray-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                />
+                {isSearching && (
+                  <RefreshCw size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 animate-spin" />
+                )}
+              </div>
+            </div>
+
+            <CoverageTree
+                rootNode={rootNode}
+                onNodeClick={handleNodeClick}
+                selectedPath={selectedPath}
+                reportId={reportInfo?.report_id || ""}
+                isIncrement={isIncrement}
+                searchQuery={searchQuery}
+                matchedPaths={matchedPaths}
+                ancestorPaths={ancestorPaths}
+                searchChildrenMap={searchChildrenMap}
+              />
           </aside>
         )}
 

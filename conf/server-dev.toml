@@ -1,3 +1,7 @@
+[server]
+grpc_addr = ":29090"
+http_addr = ":28080"
+
 [oss]
 endpoint = "http://49.233.216.158/oss/"
 console_endpoint = "http://49.233.216.158/minio/"

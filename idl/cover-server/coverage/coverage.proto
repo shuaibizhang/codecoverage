@@ -11,21 +11,24 @@ service CoverageService {
   // 根据业务维度查找覆盖率报告
   rpc GetReportInfo(GetReportInfoRequest) returns (GetReportInfoResponse) {
     option (google.api.http) = {
-      get: "/api/v1/coverage/report"
+      post: "/api/v1/coverage/report"
+      body: "*"
     };
   }
 
   // 获取目录树节点统计信息（支持分层加载）
   rpc GetTreeNodes(GetTreeNodesRequest) returns (GetTreeNodesResponse) {
     option (google.api.http) = {
-      get: "/api/v1/coverage/tree"
+      post: "/api/v1/coverage/tree"
+      body: "*"
     };
   }
 
   // 获取文件覆盖率详情及源码内容
   rpc GetFileCoverage(GetFileCoverageRequest) returns (GetFileCoverageResponse) {
     option (google.api.http) = {
-      get: "/api/v1/coverage/file"
+      post: "/api/v1/coverage/file"
+      body: "*"
     };
   }
 
@@ -51,10 +54,66 @@ service CoverageService {
       body: "*"
     };
   }
+
+  // 合并多个覆盖率报告
+  rpc MergeReports(MergeReportsRequest) returns (MergeReportsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/coverage/merge"
+      body: "*"
+    };
+  }
+
+  // 获取根目录覆盖率详情数据
+  rpc GetRootCoverage(GetRootCoverageRequest) returns (GetRootCoverageResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/coverage/root"
+      body: "*"
+    };
+  }
+
+  // 模糊匹配查询目录树节点
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/coverage/search"
+      body: "*"
+    };
+  }
+}
+
+message ReportSelector {
+  string module = 1;
+  string branch = 2;
+  string commit = 3;
+  string type = 4; // "unittest", "systest", "combined" 等
+}
+
+message MergeReportsRequest {
+  // 报告来源：支持直接使用 ID 或业务维度选择
+  message ReportSource {
+    oneof source {
+      string report_id = 1;      // 报告唯一标识
+      ReportSelector selector = 2; // 业务维度选择器
+    }
+  }
+
+  // 基准报告：定义最终合并报告的代码版本、行号结构及基础覆盖率数据
+  // 异源合并（不同 Commit）时，其他报告的覆盖率将映射到此基准报告的源码版本上
+  ReportSource base_report = 1;
+
+  // 待合并的其他报告列表
+  repeated ReportSource other_reports = 2;
+}
+
+message MergeReportsResponse {
+  string merged_report_id = 1; // 合并后生成的临时或持久化报告 ID
+  bool success = 2;
+  string message = 3;
 }
 
 message GetMetadataListRequest {
   string type = 1; // unittest, integrate, etc.
+  string module = 2; // optional, filter branches and commits by module
+  string branch = 3; // optional, filter commits by branch
 }
 
 message GetMetadataListResponse {
@@ -167,4 +226,22 @@ message GetFileCoverageResponse {
   repeated uint32 lines = 2; // 编码后的覆盖率行数据
   uint32 file_flags = 3;
   string content = 4;        // 关键：文件源码内容（Base64 或 原始字符串）
+}
+
+message GetRootCoverageRequest {
+  string report_id = 1;
+}
+
+message GetRootCoverageResponse {
+  TreeNode root_node = 1;
+}
+
+message SearchNodesRequest {
+  string report_id = 1;
+  string keyword = 2; // 模糊匹配关键字
+  bool is_increment = 3; // 是否只搜索有增量的节点
+}
+
+message SearchNodesResponse {
+  repeated TreeNode nodes = 1;
 }

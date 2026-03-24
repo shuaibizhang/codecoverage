@@ -35,6 +35,18 @@ func (c *CoverageController) GetMetadataList(ctx context.Context, req *coverage.
 	return c.svc.GetMetadataList(ctx, req)
 }
 
+func (c *CoverageController) MergeReports(ctx context.Context, req *coverage.MergeReportsRequest) (*coverage.MergeReportsResponse, error) {
+	return c.svc.MergeReports(ctx, req)
+}
+
+func (c *CoverageController) GetRootCoverage(ctx context.Context, req *coverage.GetRootCoverageRequest) (*coverage.GetRootCoverageResponse, error) {
+	return c.svc.GetRootCoverage(ctx, req)
+}
+
+func (c *CoverageController) SearchNodes(ctx context.Context, req *coverage.SearchNodesRequest) (*coverage.SearchNodesResponse, error) {
+	return c.svc.SearchNodes(ctx, req)
+}
+
 // Controller 是总控制器，实现了 coverage.CoverageServiceServer 接口
 // 它通过组合各个子控制器来完成所有 RPC 方法的实现
 type Controller struct {
@@ -69,6 +81,18 @@ func (c *Controller) GetFileCoverage(ctx context.Context, req *coverage.GetFileC
 
 func (c *Controller) GetMetadataList(ctx context.Context, req *coverage.GetMetadataListRequest) (*coverage.GetMetadataListResponse, error) {
 	return c.CoverageController.GetMetadataList(ctx, req)
+}
+
+func (c *Controller) MergeReports(ctx context.Context, req *coverage.MergeReportsRequest) (*coverage.MergeReportsResponse, error) {
+	return c.CoverageController.MergeReports(ctx, req)
+}
+
+func (c *Controller) GetRootCoverage(ctx context.Context, req *coverage.GetRootCoverageRequest) (*coverage.GetRootCoverageResponse, error) {
+	return c.CoverageController.GetRootCoverage(ctx, req)
+}
+
+func (c *Controller) SearchNodes(ctx context.Context, req *coverage.SearchNodesRequest) (*coverage.SearchNodesResponse, error) {
+	return c.CoverageController.SearchNodes(ctx, req)
 }
 
 func (c *Controller) UploadUnittestReport(ctx context.Context, req *coverage.UploadUnittestReportRequest) (*coverage.UploadUnittestReportResponse, error) {

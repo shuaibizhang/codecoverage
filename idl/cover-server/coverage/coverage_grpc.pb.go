@@ -25,6 +25,9 @@ const (
 	CoverageService_GetMetadataList_FullMethodName        = "/api.v1.coverage.CoverageService/GetMetadataList"
 	CoverageService_UploadUnittestReport_FullMethodName   = "/api.v1.coverage.CoverageService/UploadUnittestReport"
 	CoverageService_UploadSystestCoverData_FullMethodName = "/api.v1.coverage.CoverageService/UploadSystestCoverData"
+	CoverageService_MergeReports_FullMethodName           = "/api.v1.coverage.CoverageService/MergeReports"
+	CoverageService_GetRootCoverage_FullMethodName        = "/api.v1.coverage.CoverageService/GetRootCoverage"
+	CoverageService_SearchNodes_FullMethodName            = "/api.v1.coverage.CoverageService/SearchNodes"
 )
 
 // CoverageServiceClient is the client API for CoverageService service.
@@ -45,6 +48,12 @@ type CoverageServiceClient interface {
 	UploadUnittestReport(ctx context.Context, in *UploadUnittestReportRequest, opts ...grpc.CallOption) (*UploadUnittestReportResponse, error)
 	// 上报系统测试任务元数据
 	UploadSystestCoverData(ctx context.Context, in *UploadSystestCoverDataRequest, opts ...grpc.CallOption) (*UploadSystestCoverDataResponse, error)
+	// 合并多个覆盖率报告
+	MergeReports(ctx context.Context, in *MergeReportsRequest, opts ...grpc.CallOption) (*MergeReportsResponse, error)
+	// 获取根目录覆盖率详情数据
+	GetRootCoverage(ctx context.Context, in *GetRootCoverageRequest, opts ...grpc.CallOption) (*GetRootCoverageResponse, error)
+	// 模糊匹配查询目录树节点
+	SearchNodes(ctx context.Context, in *SearchNodesRequest, opts ...grpc.CallOption) (*SearchNodesResponse, error)
 }
 
 type coverageServiceClient struct {
@@ -115,6 +124,36 @@ func (c *coverageServiceClient) UploadSystestCoverData(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *coverageServiceClient) MergeReports(ctx context.Context, in *MergeReportsRequest, opts ...grpc.CallOption) (*MergeReportsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MergeReportsResponse)
+	err := c.cc.Invoke(ctx, CoverageService_MergeReports_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coverageServiceClient) GetRootCoverage(ctx context.Context, in *GetRootCoverageRequest, opts ...grpc.CallOption) (*GetRootCoverageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetRootCoverageResponse)
+	err := c.cc.Invoke(ctx, CoverageService_GetRootCoverage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coverageServiceClient) SearchNodes(ctx context.Context, in *SearchNodesRequest, opts ...grpc.CallOption) (*SearchNodesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchNodesResponse)
+	err := c.cc.Invoke(ctx, CoverageService_SearchNodes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CoverageServiceServer is the server API for CoverageService service.
 // All implementations must embed UnimplementedCoverageServiceServer
 // for forward compatibility.
@@ -133,6 +172,12 @@ type CoverageServiceServer interface {
 	UploadUnittestReport(context.Context, *UploadUnittestReportRequest) (*UploadUnittestReportResponse, error)
 	// 上报系统测试任务元数据
 	UploadSystestCoverData(context.Context, *UploadSystestCoverDataRequest) (*UploadSystestCoverDataResponse, error)
+	// 合并多个覆盖率报告
+	MergeReports(context.Context, *MergeReportsRequest) (*MergeReportsResponse, error)
+	// 获取根目录覆盖率详情数据
+	GetRootCoverage(context.Context, *GetRootCoverageRequest) (*GetRootCoverageResponse, error)
+	// 模糊匹配查询目录树节点
+	SearchNodes(context.Context, *SearchNodesRequest) (*SearchNodesResponse, error)
 	mustEmbedUnimplementedCoverageServiceServer()
 }
 
@@ -160,6 +205,15 @@ func (UnimplementedCoverageServiceServer) UploadUnittestReport(context.Context, 
 }
 func (UnimplementedCoverageServiceServer) UploadSystestCoverData(context.Context, *UploadSystestCoverDataRequest) (*UploadSystestCoverDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UploadSystestCoverData not implemented")
+}
+func (UnimplementedCoverageServiceServer) MergeReports(context.Context, *MergeReportsRequest) (*MergeReportsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MergeReports not implemented")
+}
+func (UnimplementedCoverageServiceServer) GetRootCoverage(context.Context, *GetRootCoverageRequest) (*GetRootCoverageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRootCoverage not implemented")
+}
+func (UnimplementedCoverageServiceServer) SearchNodes(context.Context, *SearchNodesRequest) (*SearchNodesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchNodes not implemented")
 }
 func (UnimplementedCoverageServiceServer) mustEmbedUnimplementedCoverageServiceServer() {}
 func (UnimplementedCoverageServiceServer) testEmbeddedByValue()                         {}
@@ -290,6 +344,60 @@ func _CoverageService_UploadSystestCoverData_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CoverageService_MergeReports_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MergeReportsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).MergeReports(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_MergeReports_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).MergeReports(ctx, req.(*MergeReportsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoverageService_GetRootCoverage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRootCoverageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).GetRootCoverage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_GetRootCoverage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).GetRootCoverage(ctx, req.(*GetRootCoverageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoverageService_SearchNodes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchNodesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).SearchNodes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_SearchNodes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).SearchNodes(ctx, req.(*SearchNodesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CoverageService_ServiceDesc is the grpc.ServiceDesc for CoverageService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -320,6 +428,18 @@ var CoverageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UploadSystestCoverData",
 			Handler:    _CoverageService_UploadSystestCoverData_Handler,
+		},
+		{
+			MethodName: "MergeReports",
+			Handler:    _CoverageService_MergeReports_Handler,
+		},
+		{
+			MethodName: "GetRootCoverage",
+			Handler:    _CoverageService_GetRootCoverage_Handler,
+		},
+		{
+			MethodName: "SearchNodes",
+			Handler:    _CoverageService_SearchNodes_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

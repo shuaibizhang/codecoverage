@@ -53,14 +53,14 @@ function install_goc() {
 
 
 # goc构建时注入四元组信息到template
-export MODULE="${MODULE:-}"
-export BRANCH="${BRANCH:-}"
-export COMMIT="${COMMIT:-}"
-export BASE_COMMIT="${BASE_COMMIT:-}"
-# export MODULE="shuaibizhang/codecoverage"
-# export BRANCH="bingozhang"
-# export COMMIT="0646a5c9a7c051c0f0171e79b082fb8224414b88"
-# export BASE_COMMIT="b60f1d75bf78cecb82b87346fab1c74420aa65b0"
+# export MODULE="${MODULE:-}"
+# export BRANCH="${BRANCH:-}"
+# export COMMIT="${COMMIT:-}"
+# export BASE_COMMIT="${BASE_COMMIT:-}"
+export MODULE="shuaibizhang/codecoverage"
+export BRANCH="bingozhang"
+export COMMIT="0646a5c9a7c051c0f0171e79b082fb8224414b88"
+export BASE_COMMIT="b60f1d75bf78cecb82b87346fab1c74420aa65b0"
 set_module_info() {
     log "HEADER" "环境检测"
     log "INFO" "正在检测环境和分支信息..."
