@@ -101,6 +101,9 @@ func (m *mockPartitionKey) Unmarshal(data string) error      { return nil }
 func (m *mockPartitionKey) RealPathPrefix() string           { return "test" }
 func (m *mockPartitionKey) Offset() int64                    { return m.offset }
 func (m *mockPartitionKey) SetOffset(o int64)                { m.offset = o }
+func (m *mockPartitionKey) GetModule() string                { return "" }
+func (m *mockPartitionKey) GetBranch() string                { return "" }
+func (m *mockPartitionKey) GetCommit() string                { return "" }
 
 func TestStorage_SetGetCoverLine(t *testing.T) {
 	ctx := context.Background()

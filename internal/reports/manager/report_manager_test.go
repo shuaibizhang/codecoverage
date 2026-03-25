@@ -66,6 +66,9 @@ func (m *mockPartitionKey) Unmarshal(data string) error      { return nil }
 func (m *mockPartitionKey) RealPathPrefix() string           { return "test_report" }
 func (m *mockPartitionKey) Offset() int64                    { return m.offset }
 func (m *mockPartitionKey) SetOffset(o int64)                { m.offset = o }
+func (m *mockPartitionKey) GetModule() string                { return "" }
+func (m *mockPartitionKey) GetBranch() string                { return "" }
+func (m *mockPartitionKey) GetCommit() string                { return "" }
 
 func TestReportManager_CreateReport(t *testing.T) {
 	storage, cleanup := setupRealStorage(t)
