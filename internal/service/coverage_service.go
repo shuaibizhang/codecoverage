@@ -12,6 +12,7 @@ import (
 	"github.com/shuaibizhang/codecoverage/internal/reports/manager"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/storage/partitionkey"
 	"github.com/shuaibizhang/codecoverage/internal/reports/report/tree"
+	snsvc "github.com/shuaibizhang/codecoverage/internal/snapshot/service"
 	ststore "github.com/shuaibizhang/codecoverage/internal/systest/store"
 	utstore "github.com/shuaibizhang/codecoverage/internal/unittest/store"
 	"google.golang.org/grpc/codes"
@@ -26,6 +27,8 @@ type CoverageService interface {
 	MergeReports(ctx context.Context, req *coverage.MergeReportsRequest) (*coverage.MergeReportsResponse, error)
 	GetRootCoverage(ctx context.Context, req *coverage.GetRootCoverageRequest) (*coverage.GetRootCoverageResponse, error)
 	SearchNodes(ctx context.Context, req *coverage.SearchNodesRequest) (*coverage.SearchNodesResponse, error)
+	GetReportInfoById(ctx context.Context, req *coverage.GetReportInfoByIdRequest) (*coverage.GetReportInfoResponse, error)
+	CreateSnapshot(ctx context.Context, req *coverage.CreateSnapshotRequest) (*coverage.CreateSnapshotResponse, error)
 }
 
 type coverageService struct {
@@ -34,15 +37,17 @@ type coverageService struct {
 	diffSvc      diffService.Service
 	utStore      utstore.UnitTestStore
 	stStore      ststore.SystestStore
+	snSvc        snsvc.SnapshotService
 }
 
-func NewCoverageService(mgr manager.ReportManager, codeProvider cp.CodeProvider, diffSvc diffService.Service, utStore utstore.UnitTestStore, stStore ststore.SystestStore) CoverageService {
+func NewCoverageService(mgr manager.ReportManager, codeProvider cp.CodeProvider, diffSvc diffService.Service, utStore utstore.UnitTestStore, stStore ststore.SystestStore, snSvc snsvc.SnapshotService) CoverageService {
 	return &coverageService{
 		mgr:          mgr,
 		codeProvider: codeProvider,
 		diffSvc:      diffSvc,
 		utStore:      utStore,
 		stStore:      stStore,
+		snSvc:        snSvc,
 	}
 }
 
@@ -64,10 +69,29 @@ func (s *coverageService) GetReportInfo(ctx context.Context, req *coverage.GetRe
 			return nil, status.Errorf(codes.NotFound, "report partition key is empty in database")
 		}
 
-		pk = partitionkey.NewReportKey("", "", "", "")
-		if err := pk.Unmarshal(task.ReportPartitionKey); err != nil {
+		pk, err = partitionkey.UnmarshalPartitionKey(task.ReportPartitionKey)
+		if err != nil {
 			log.Printf("GetReportInfo: unmarshal pk failed: %v, data=%s", err, task.ReportPartitionKey)
 			return nil, status.Errorf(codes.Internal, "invalid report_id in database: %v", err)
+		}
+	} else if req.Type == "snapshot" {
+		if s.snSvc == nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "snapshot service not initialized")
+		}
+		info, err := s.snSvc.QueryLatestByCommit(ctx, req.Module, req.Branch, req.Commit)
+		if err != nil {
+			log.Printf("GetReportInfo: query snapshot db failed: %v", err)
+			return nil, status.Errorf(codes.NotFound, "snapshot not found in database: %v", err)
+		}
+		if info.ReportPartitionKey == "" {
+			log.Printf("GetReportInfo: snapshot found but ReportPartitionKey is empty")
+			return nil, status.Errorf(codes.NotFound, "snapshot partition key is empty in database")
+		}
+
+		pk, err = partitionkey.UnmarshalPartitionKey(info.ReportPartitionKey)
+		if err != nil {
+			log.Printf("GetReportInfo: unmarshal snapshot pk failed: %v, data=%s", err, info.ReportPartitionKey)
+			return nil, status.Errorf(codes.Internal, "invalid snapshot report_id in database: %v", err)
 		}
 	} else if req.Type == "systest" || req.Type == "integrate" || req.Type == "integration" {
 		if s.stStore == nil {
@@ -83,8 +107,8 @@ func (s *coverageService) GetReportInfo(ctx context.Context, req *coverage.GetRe
 			return nil, status.Errorf(codes.NotFound, "report partition key is empty in database")
 		}
 
-		pk = partitionkey.NewReportKey("", "", "", "")
-		if err := pk.Unmarshal(task.ReportPartitionKey); err != nil {
+		pk, err = partitionkey.UnmarshalPartitionKey(task.ReportPartitionKey)
+		if err != nil {
 			log.Printf("GetReportInfo: unmarshal pk failed: %v, data=%s", err, task.ReportPartitionKey)
 			return nil, status.Errorf(codes.Internal, "invalid report_id in database: %v", err)
 		}
@@ -132,8 +156,8 @@ func (s *coverageService) GetReportInfo(ctx context.Context, req *coverage.GetRe
 }
 
 func (s *coverageService) GetTreeNodes(ctx context.Context, req *coverage.GetTreeNodesRequest) (*coverage.GetTreeNodesResponse, error) {
-	pk := partitionkey.NewReportKey("", "", "", "")
-	if err := pk.Unmarshal(req.ReportId); err != nil {
+	pk, err := partitionkey.UnmarshalPartitionKey(req.ReportId)
+	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid report_id")
 	}
 
@@ -208,8 +232,8 @@ func (s *coverageService) GetTreeNodes(ctx context.Context, req *coverage.GetTre
 
 func (s *coverageService) GetFileCoverage(ctx context.Context, req *coverage.GetFileCoverageRequest) (*coverage.GetFileCoverageResponse, error) {
 	log.Printf("GetFileCoverage: report_id=%s, path=%s", req.ReportId, req.Path)
-	pk := partitionkey.NewReportKey("", "", "", "")
-	if err := pk.Unmarshal(req.ReportId); err != nil {
+	pk, err := partitionkey.UnmarshalPartitionKey(req.ReportId)
+	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid report_id")
 	}
 
@@ -354,8 +378,8 @@ func (s *coverageService) resolveReportPk(ctx context.Context, source *coverage.
 	switch src := source.Source.(type) {
 	case *coverage.MergeReportsRequest_ReportSource_ReportId:
 		log.Printf("resolveReportPk: using report_id=%s", src.ReportId)
-		pk := partitionkey.NewReportKey("", "", "", "")
-		if err := pk.Unmarshal(src.ReportId); err != nil {
+		pk, err := partitionkey.UnmarshalPartitionKey(src.ReportId)
+		if err != nil {
 			return nil, fmt.Errorf("invalid report_id: %v", err)
 		}
 		return pk, nil
@@ -373,8 +397,8 @@ func (s *coverageService) resolveReportPk(ctx context.Context, source *coverage.
 		if err != nil {
 			return nil, fmt.Errorf("report not found by selector: %v", err)
 		}
-		pk := partitionkey.NewReportKey("", "", "", "")
-		if err := pk.Unmarshal(resp.ReportId); err != nil {
+		pk, err := partitionkey.UnmarshalPartitionKey(resp.ReportId)
+		if err != nil {
 			return nil, fmt.Errorf("invalid resolved report_id: %v", err)
 		}
 		return pk, nil
@@ -395,6 +419,11 @@ func (s *coverageService) GetMetadataList(ctx context.Context, req *coverage.Get
 			return nil, status.Errorf(codes.FailedPrecondition, "systest store not initialized")
 		}
 		modules, branches, commits, err = s.stStore.GetMetadataList(ctx, req.Module, req.Branch)
+	} else if req.Type == "snapshot" {
+		if s.snSvc == nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "snapshot service not initialized")
+		}
+		modules, branches, commits, err = s.snSvc.GetMetadataList(ctx, req.Module, req.Branch)
 	} else if req.Type == "unittest" || req.Type == "unit_test" || req.Type == "unit" || req.Type == "" {
 		if s.utStore == nil {
 			return nil, status.Errorf(codes.FailedPrecondition, "unittest store not initialized")
@@ -419,8 +448,8 @@ func (s *coverageService) GetMetadataList(ctx context.Context, req *coverage.Get
 }
 
 func (s *coverageService) GetRootCoverage(ctx context.Context, req *coverage.GetRootCoverageRequest) (*coverage.GetRootCoverageResponse, error) {
-	pk := partitionkey.NewReportKey("", "", "", "")
-	if err := pk.Unmarshal(req.ReportId); err != nil {
+	pk, err := partitionkey.UnmarshalPartitionKey(req.ReportId)
+	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid report_id")
 	}
 
@@ -461,8 +490,8 @@ func (s *coverageService) GetRootCoverage(ctx context.Context, req *coverage.Get
 }
 
 func (s *coverageService) SearchNodes(ctx context.Context, req *coverage.SearchNodesRequest) (*coverage.SearchNodesResponse, error) {
-	pk := partitionkey.NewReportKey("", "", "", "")
-	if err := pk.Unmarshal(req.ReportId); err != nil {
+	pk, err := partitionkey.UnmarshalPartitionKey(req.ReportId)
+	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid report_id")
 	}
 
@@ -512,4 +541,63 @@ func (s *coverageService) SearchNodes(ctx context.Context, req *coverage.SearchN
 	return &coverage.SearchNodesResponse{
 		Nodes: nodes,
 	}, nil
+}
+
+func (s *coverageService) GetReportInfoById(ctx context.Context, req *coverage.GetReportInfoByIdRequest) (*coverage.GetReportInfoResponse, error) {
+	log.Printf("GetReportInfoById: report_id=%s", req.ReportId)
+	pk, err := partitionkey.UnmarshalPartitionKey(req.ReportId)
+	if err != nil {
+		log.Printf("GetReportInfoById: unmarshal pk failed: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid report_id: %v", err)
+	}
+
+	log.Printf("GetReportInfoById: opening report with PK path: %s", pk.RealPathPrefix())
+	rep, err := s.mgr.Open(ctx, pk)
+	if err != nil {
+		log.Printf("GetReportInfoById: open report failed: %v, path=%s", err, pk.RealPathPrefix())
+		return nil, status.Errorf(codes.NotFound, "report not found: %v", err)
+	}
+	defer rep.Close(ctx)
+
+	meta := rep.GetMeta()
+	module := meta.Module
+	if module == "" {
+		module = pk.GetModule()
+	}
+	branch := meta.Branch
+	if branch == "" {
+		branch = pk.GetBranch()
+	}
+	commit := meta.Commit
+	if commit == "" {
+		commit = pk.GetCommit()
+	}
+
+	coverageVal := uint32(0)
+	root := rep.FindNode("*")
+	if root == nil {
+		root = rep.FindNode("")
+	}
+	if root != nil {
+		coverageVal = root.GetStat().Coverage
+	}
+
+	return &coverage.GetReportInfoResponse{
+		ReportId: req.ReportId,
+		Meta: &coverage.MetaInfo{
+			Module:     module,
+			Branch:     branch,
+			Commit:     commit,
+			TotalFiles: uint32(meta.TotalFiles),
+			Coverage:   coverageVal,
+			LastUpdate: meta.LastUpdate,
+		},
+	}, nil
+}
+
+func (s *coverageService) CreateSnapshot(ctx context.Context, req *coverage.CreateSnapshotRequest) (*coverage.CreateSnapshotResponse, error) {
+	if s.snSvc == nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "snapshot service not initialized")
+	}
+	return s.snSvc.CreateSnapshot(ctx, req)
 }

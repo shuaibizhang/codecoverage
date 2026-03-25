@@ -1,5 +1,9 @@
 package partitionkey
 
+import (
+	"encoding/json"
+)
+
 // 分区类型
 type PartitionType string
 
@@ -19,6 +23,7 @@ const (
 	OnlineTest    TestType = "online"
 	AutoTest      TestType = "auto"
 	Systest       TestType = "systest"
+	Snapshot      TestType = "snapshot"
 )
 
 // PartitionKey 分区接口，既是报告的寻址句柄，也是磁盘物理位置的寻址句柄
@@ -38,4 +43,30 @@ type PartitionKey interface {
 	GetModule() string
 	GetBranch() string
 	GetCommit() string
+}
+
+// UnmarshalPartitionKey 根据 json 中的 test_type 自动识别并反序列化为对应的 PartitionKey 实现
+func UnmarshalPartitionKey(data string) (PartitionKey, error) {
+	var base struct {
+		TType TestType `json:"test_type"`
+	}
+	if err := json.Unmarshal([]byte(data), &base); err != nil {
+		return nil, err
+	}
+
+	var pk PartitionKey
+	switch base.TType {
+	case Snapshot:
+		pk = &snapshotKey{}
+	case UnitTest, IntegrateTest, OnlineTest, AutoTest, Systest:
+		pk = &reportKey{}
+	default:
+		// 如果没有 test_type，或者 test_type 不匹配，尝试作为普通的 reportKey（兼容旧版本）
+		pk = &reportKey{}
+	}
+
+	if err := pk.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return pk, nil
 }

@@ -105,8 +105,37 @@ export async function mergeReports(req: MergeReportsRequest): Promise<MergeRepor
     body: JSON.stringify(req),
   });
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to merge reports');
+    throw new Error('Failed to merge reports');
+  }
+  return response.json();
+}
+
+export async function createSnapshot(reportId: string): Promise<{ snapshot_report_id: string, success: boolean, message: string }> {
+  const url = `${BASE_URL}/api/v1/coverage/snapshot`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ report_id: reportId }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to create snapshot');
+  }
+  return response.json();
+}
+
+export async function getReportInfoById(reportId: string): Promise<ReportInfo> {
+  const url = `${BASE_URL}/api/v1/coverage/report_by_id`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ report_id: reportId }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch report info by id');
   }
   return response.json();
 }

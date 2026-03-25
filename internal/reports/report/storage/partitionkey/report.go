@@ -27,6 +27,9 @@ type reportKey struct {
 
 // NewReportKey 创建报告寻址句柄，用于定位 .cno、.cda 文件
 func NewReportKey(ttype TestType, module, branch, commit string) PartitionKey {
+	if ttype == Snapshot {
+		return NewSnapshotReportKey(module, branch, commit)
+	}
 	return &reportKey{
 		TType:     ttype,
 		Module:    module,

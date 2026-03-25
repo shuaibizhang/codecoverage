@@ -56,7 +56,7 @@ export function MergeModal({ isOpen, onClose, baseReport, testTypes, onMergeSucc
           } else if (filtered.length === 0) {
             setError("当前模块在其他测试类型下暂无数据，无法进行合并。");
           }
-        } catch (err) {
+        } catch {
           setError("获取可用测试类型失败");
         } finally {
           setLoading(false);

@@ -22,6 +22,8 @@ import (
 	"github.com/shuaibizhang/codecoverage/internal/server"
 	"github.com/shuaibizhang/codecoverage/internal/server/controller"
 	"github.com/shuaibizhang/codecoverage/internal/service"
+	snservice "github.com/shuaibizhang/codecoverage/internal/snapshot/service"
+	snstore "github.com/shuaibizhang/codecoverage/internal/snapshot/store"
 	stservice "github.com/shuaibizhang/codecoverage/internal/systest/service"
 	ststore "github.com/shuaibizhang/codecoverage/internal/systest/store"
 	utservice "github.com/shuaibizhang/codecoverage/internal/unittest/service"
@@ -92,6 +94,8 @@ func main() {
 	var dbStore *store.Store
 	var unittestStore utstore.UnitTestStore
 	var systestStore ststore.SystestStore
+	var snapshotStore snstore.SnapshotStore
+	var snapshotSvc snservice.SnapshotService
 	if cfg.DbConfig.Host != "" {
 		database, err := db.Open(&cfg.DbConfig)
 		if err != nil {
@@ -100,6 +104,8 @@ func main() {
 			dbStore = store.NewStore(database)
 			unittestStore = utstore.NewUnitTestStore(dbStore)
 			systestStore = ststore.NewSystestStore(dbStore)
+			snapshotStore = snstore.NewSnapshotStore(dbStore)
+			snapshotSvc = snservice.NewSnapshotService(snapshotStore, mgr)
 			log.Printf("Database initialized successfully")
 		}
 	}
@@ -142,7 +148,7 @@ func main() {
 	}
 
 	// 1.6 初始化 Service
-	covSvc := service.NewCoverageService(mgr, codeProv, diffSvc, unittestStore, systestStore)
+	covSvc := service.NewCoverageService(mgr, codeProv, diffSvc, unittestStore, systestStore, snapshotSvc)
 	var unittestSvc utservice.UnitTestService
 	if unittestStore != nil {
 		unittestSvc = utservice.NewUnitTestService(unittestStore, ossCli, mgr, cfg.OssConfig.BucketName)

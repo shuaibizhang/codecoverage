@@ -47,6 +47,14 @@ func (c *CoverageController) SearchNodes(ctx context.Context, req *coverage.Sear
 	return c.svc.SearchNodes(ctx, req)
 }
 
+func (c *CoverageController) GetReportInfoById(ctx context.Context, req *coverage.GetReportInfoByIdRequest) (*coverage.GetReportInfoResponse, error) {
+	return c.svc.GetReportInfoById(ctx, req)
+}
+
+func (c *CoverageController) CreateSnapshot(ctx context.Context, req *coverage.CreateSnapshotRequest) (*coverage.CreateSnapshotResponse, error) {
+	return c.svc.CreateSnapshot(ctx, req)
+}
+
 // Controller 是总控制器，实现了 coverage.CoverageServiceServer 接口
 // 它通过组合各个子控制器来完成所有 RPC 方法的实现
 type Controller struct {
@@ -93,6 +101,14 @@ func (c *Controller) GetRootCoverage(ctx context.Context, req *coverage.GetRootC
 
 func (c *Controller) SearchNodes(ctx context.Context, req *coverage.SearchNodesRequest) (*coverage.SearchNodesResponse, error) {
 	return c.CoverageController.SearchNodes(ctx, req)
+}
+
+func (c *Controller) GetReportInfoById(ctx context.Context, req *coverage.GetReportInfoByIdRequest) (*coverage.GetReportInfoResponse, error) {
+	return c.CoverageController.GetReportInfoById(ctx, req)
+}
+
+func (c *Controller) CreateSnapshot(ctx context.Context, req *coverage.CreateSnapshotRequest) (*coverage.CreateSnapshotResponse, error) {
+	return c.CoverageController.CreateSnapshot(ctx, req)
 }
 
 func (c *Controller) UploadUnittestReport(ctx context.Context, req *coverage.UploadUnittestReportRequest) (*coverage.UploadUnittestReportResponse, error) {

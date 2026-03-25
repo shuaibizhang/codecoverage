@@ -23,11 +23,13 @@ const (
 	CoverageService_GetTreeNodes_FullMethodName           = "/api.v1.coverage.CoverageService/GetTreeNodes"
 	CoverageService_GetFileCoverage_FullMethodName        = "/api.v1.coverage.CoverageService/GetFileCoverage"
 	CoverageService_GetMetadataList_FullMethodName        = "/api.v1.coverage.CoverageService/GetMetadataList"
+	CoverageService_GetReportInfoById_FullMethodName      = "/api.v1.coverage.CoverageService/GetReportInfoById"
 	CoverageService_UploadUnittestReport_FullMethodName   = "/api.v1.coverage.CoverageService/UploadUnittestReport"
 	CoverageService_UploadSystestCoverData_FullMethodName = "/api.v1.coverage.CoverageService/UploadSystestCoverData"
 	CoverageService_MergeReports_FullMethodName           = "/api.v1.coverage.CoverageService/MergeReports"
 	CoverageService_GetRootCoverage_FullMethodName        = "/api.v1.coverage.CoverageService/GetRootCoverage"
 	CoverageService_SearchNodes_FullMethodName            = "/api.v1.coverage.CoverageService/SearchNodes"
+	CoverageService_CreateSnapshot_FullMethodName         = "/api.v1.coverage.CoverageService/CreateSnapshot"
 )
 
 // CoverageServiceClient is the client API for CoverageService service.
@@ -44,6 +46,8 @@ type CoverageServiceClient interface {
 	GetFileCoverage(ctx context.Context, in *GetFileCoverageRequest, opts ...grpc.CallOption) (*GetFileCoverageResponse, error)
 	// 获取指定测试类型的元数据列表 (Module, Branch, Commit)
 	GetMetadataList(ctx context.Context, in *GetMetadataListRequest, opts ...grpc.CallOption) (*GetMetadataListResponse, error)
+	// 根据报告 ID 获取报告详情
+	GetReportInfoById(ctx context.Context, in *GetReportInfoByIdRequest, opts ...grpc.CallOption) (*GetReportInfoResponse, error)
 	// 上报单测任务元数据
 	UploadUnittestReport(ctx context.Context, in *UploadUnittestReportRequest, opts ...grpc.CallOption) (*UploadUnittestReportResponse, error)
 	// 上报系统测试任务元数据
@@ -54,6 +58,8 @@ type CoverageServiceClient interface {
 	GetRootCoverage(ctx context.Context, in *GetRootCoverageRequest, opts ...grpc.CallOption) (*GetRootCoverageResponse, error)
 	// 模糊匹配查询目录树节点
 	SearchNodes(ctx context.Context, in *SearchNodesRequest, opts ...grpc.CallOption) (*SearchNodesResponse, error)
+	// 创建覆盖率快照（固化当前报告）
+	CreateSnapshot(ctx context.Context, in *CreateSnapshotRequest, opts ...grpc.CallOption) (*CreateSnapshotResponse, error)
 }
 
 type coverageServiceClient struct {
@@ -98,6 +104,16 @@ func (c *coverageServiceClient) GetMetadataList(ctx context.Context, in *GetMeta
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetMetadataListResponse)
 	err := c.cc.Invoke(ctx, CoverageService_GetMetadataList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coverageServiceClient) GetReportInfoById(ctx context.Context, in *GetReportInfoByIdRequest, opts ...grpc.CallOption) (*GetReportInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetReportInfoResponse)
+	err := c.cc.Invoke(ctx, CoverageService_GetReportInfoById_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +170,16 @@ func (c *coverageServiceClient) SearchNodes(ctx context.Context, in *SearchNodes
 	return out, nil
 }
 
+func (c *coverageServiceClient) CreateSnapshot(ctx context.Context, in *CreateSnapshotRequest, opts ...grpc.CallOption) (*CreateSnapshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateSnapshotResponse)
+	err := c.cc.Invoke(ctx, CoverageService_CreateSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CoverageServiceServer is the server API for CoverageService service.
 // All implementations must embed UnimplementedCoverageServiceServer
 // for forward compatibility.
@@ -168,6 +194,8 @@ type CoverageServiceServer interface {
 	GetFileCoverage(context.Context, *GetFileCoverageRequest) (*GetFileCoverageResponse, error)
 	// 获取指定测试类型的元数据列表 (Module, Branch, Commit)
 	GetMetadataList(context.Context, *GetMetadataListRequest) (*GetMetadataListResponse, error)
+	// 根据报告 ID 获取报告详情
+	GetReportInfoById(context.Context, *GetReportInfoByIdRequest) (*GetReportInfoResponse, error)
 	// 上报单测任务元数据
 	UploadUnittestReport(context.Context, *UploadUnittestReportRequest) (*UploadUnittestReportResponse, error)
 	// 上报系统测试任务元数据
@@ -178,6 +206,8 @@ type CoverageServiceServer interface {
 	GetRootCoverage(context.Context, *GetRootCoverageRequest) (*GetRootCoverageResponse, error)
 	// 模糊匹配查询目录树节点
 	SearchNodes(context.Context, *SearchNodesRequest) (*SearchNodesResponse, error)
+	// 创建覆盖率快照（固化当前报告）
+	CreateSnapshot(context.Context, *CreateSnapshotRequest) (*CreateSnapshotResponse, error)
 	mustEmbedUnimplementedCoverageServiceServer()
 }
 
@@ -200,6 +230,9 @@ func (UnimplementedCoverageServiceServer) GetFileCoverage(context.Context, *GetF
 func (UnimplementedCoverageServiceServer) GetMetadataList(context.Context, *GetMetadataListRequest) (*GetMetadataListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMetadataList not implemented")
 }
+func (UnimplementedCoverageServiceServer) GetReportInfoById(context.Context, *GetReportInfoByIdRequest) (*GetReportInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetReportInfoById not implemented")
+}
 func (UnimplementedCoverageServiceServer) UploadUnittestReport(context.Context, *UploadUnittestReportRequest) (*UploadUnittestReportResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UploadUnittestReport not implemented")
 }
@@ -214,6 +247,9 @@ func (UnimplementedCoverageServiceServer) GetRootCoverage(context.Context, *GetR
 }
 func (UnimplementedCoverageServiceServer) SearchNodes(context.Context, *SearchNodesRequest) (*SearchNodesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SearchNodes not implemented")
+}
+func (UnimplementedCoverageServiceServer) CreateSnapshot(context.Context, *CreateSnapshotRequest) (*CreateSnapshotResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateSnapshot not implemented")
 }
 func (UnimplementedCoverageServiceServer) mustEmbedUnimplementedCoverageServiceServer() {}
 func (UnimplementedCoverageServiceServer) testEmbeddedByValue()                         {}
@@ -308,6 +344,24 @@ func _CoverageService_GetMetadataList_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CoverageService_GetReportInfoById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetReportInfoByIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).GetReportInfoById(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_GetReportInfoById_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).GetReportInfoById(ctx, req.(*GetReportInfoByIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _CoverageService_UploadUnittestReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UploadUnittestReportRequest)
 	if err := dec(in); err != nil {
@@ -398,6 +452,24 @@ func _CoverageService_SearchNodes_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CoverageService_CreateSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSnapshotRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).CreateSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_CreateSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).CreateSnapshot(ctx, req.(*CreateSnapshotRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CoverageService_ServiceDesc is the grpc.ServiceDesc for CoverageService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -422,6 +494,10 @@ var CoverageService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CoverageService_GetMetadataList_Handler,
 		},
 		{
+			MethodName: "GetReportInfoById",
+			Handler:    _CoverageService_GetReportInfoById_Handler,
+		},
+		{
 			MethodName: "UploadUnittestReport",
 			Handler:    _CoverageService_UploadUnittestReport_Handler,
 		},
@@ -440,6 +516,10 @@ var CoverageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SearchNodes",
 			Handler:    _CoverageService_SearchNodes_Handler,
+		},
+		{
+			MethodName: "CreateSnapshot",
+			Handler:    _CoverageService_CreateSnapshot_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

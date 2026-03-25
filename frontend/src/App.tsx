@@ -2,15 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CoverageTree } from './CoverageTree';
 import { SourceView } from './SourceView';
 import { MergeModal } from './MergeModal';
-import { Layout, ShieldCheck, Database, Activity, Search, RefreshCw, Layers, ChevronDown, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, GitMerge } from 'lucide-react';
-import { getReportInfo, getFileCoverage, getMetadataList, getRootCoverage, searchNodes } from './api';
+import { Layout, ShieldCheck, Database, Activity, Search, RefreshCw, Layers, ChevronDown, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, GitMerge, Camera, CheckCircle2, X } from 'lucide-react';
+import { getReportInfo, getFileCoverage, getMetadataList, getRootCoverage, searchNodes, createSnapshot, getReportInfoById } from './api';
 import { NodeType, type ReportInfo, type TreeNode, type FileCoverage } from './types';
 
 const TEST_TYPES = [
   { id: 'unittest', label: '单元测试', icon: ShieldCheck },
   { id: 'systest', label: '集成测试', icon: Layers },
-  { id: 'online', label: '线上测试', icon: Database },
-  { id: 'auto', label: '自动化测试', icon: Activity },
+  { id: 'snapshot', label: '覆盖率快照', icon: Database },
 ];
 
 function App() {
@@ -32,7 +31,7 @@ function App() {
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [fileData, setFileData] = useState<FileCoverage | null>(null);
   const [loading, setLoading] = useState(false);
-  const [_error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMaximized, setIsMaximized] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -57,6 +56,8 @@ function App() {
 
     return () => clearTimeout(timer);
   }, [searchQuery, isIncrement]);
+
+  const [snapshotResult, setSnapshotResult] = useState<{ id: string, message: string } | null>(null);
 
   const performSearch = useCallback(async (query: string) => {
     if (!query.trim() || !reportInfo || !rootNode) return;
@@ -210,7 +211,7 @@ function App() {
         setLoading(true);
         const data = await getFileCoverage(reportInfo?.report_id || "", node.path);
         setFileData(data);
-      } catch (err) {
+      } catch {
         setError("获取文件详情失败");
       } finally {
         setLoading(false);
@@ -267,7 +268,7 @@ function App() {
     }
   }, [module, branch, commit, fetchReport]);
 
-  const StatItem = ({ label, value, subLabel, colorClass = "text-gray-300", large = false }: any) => (
+  const StatItem = ({ label, value, subLabel, colorClass = "text-gray-300", large = false }: { label: string, value: string, subLabel?: string, colorClass?: string, large?: boolean }) => (
     <div 
       className={`flex flex-col border-r border-gray-800/50 px-5 last:border-r-0 ${large ? 'min-w-[140px]' : 'min-w-[90px]'} group/stat`}
       title={`${label}: ${value}${subLabel ? ` (${subLabel})` : ''}`}
@@ -279,6 +280,56 @@ function App() {
       </div>
     </div>
   );
+
+  const loadReportById = async (reportId: string, targetTestType?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const info = await getReportInfoById(reportId);
+      setReportInfo(info);
+
+      // 更新状态，确保与加载的报告一致
+      if (info.meta) {
+        setModule(info.meta.module || "");
+        setBranch(info.meta.branch || "");
+        setCommit(info.meta.commit || "");
+        // 更新 fetchReportRef，防止后续 fetchReport 重复请求
+        const tType = targetTestType || testType;
+        fetchReportRef.current = `${tType}-${info.meta.module || ""}-${info.meta.branch || ""}-${info.meta.commit || ""}`;
+      }
+      
+      const root = await getRootCoverage(info.report_id);
+      if (root) {
+        setRootNode(root);
+        setSelectedNode(root);
+        setSelectedPath(root.path);
+      } else {
+        setError("未找到该报告的树节点数据。");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载报告失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateSnapshot = async () => {
+    if (!reportInfo) return;
+    try {
+      setLoading(true);
+      setSnapshotResult(null);
+      const res = await createSnapshot(reportInfo.report_id);
+      if (res.success) {
+        setSnapshotResult({ id: res.snapshot_report_id, message: "快照创建成功！" });
+      } else {
+        setError(`快照创建失败: ${res.message}`);
+      }
+    } catch (err) {
+      setError(`创建快照出错: ${err instanceof Error ? err.message : '未知错误'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const displayNode = selectedNode || rootNode;
 
@@ -363,9 +414,70 @@ function App() {
               <GitMerge size={14} />
               <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">合并报告</span>
             </button>
+            <button 
+              onClick={handleCreateSnapshot}
+              disabled={!reportInfo}
+              className={`bg-[#161b22] border border-gray-700/50 p-2 rounded-lg transition-all shadow-md active:scale-95 flex items-center space-x-2 ${
+                !reportInfo 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'hover:bg-blue-600 hover:border-blue-500 text-gray-400 hover:text-white'
+              }`}
+              title="生成覆盖率快照"
+            >
+              <Camera size={14} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">生成快照</span>
+            </button>
           </div>
         </div>
       </header>
+
+      {error && (
+        <div className="mx-5 mt-2 bg-red-900/20 border border-red-500/30 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center space-x-3">
+            <X className="text-red-500" size={18} />
+            <p className="text-xs font-bold text-red-500">{error}</p>
+          </div>
+          <button onClick={() => setError(null)} className="text-gray-500 hover:text-gray-300">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {snapshotResult && (
+        <div className="mx-5 mt-2 bg-green-900/20 border border-green-500/30 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center space-x-3">
+            <CheckCircle2 className="text-green-500" size={18} />
+            <div>
+              <p className="text-xs font-bold text-green-500">{snapshotResult.message}</p>
+              <p className="text-[10px] text-gray-400 font-mono mt-0.5">PartitionKey: {snapshotResult.id}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(snapshotResult.id);
+                setSnapshotResult(prev => prev ? { ...prev, message: "ID已复制到剪贴板！" } : null);
+              }}
+              className="text-[10px] bg-green-600/20 hover:bg-green-600/40 text-green-400 px-2 py-1 rounded border border-green-500/30 transition-colors font-bold"
+            >
+              复制 ID
+            </button>
+            <button 
+              onClick={() => {
+                setTestType('snapshot'); // 跳转到快照覆盖率 tab
+                loadReportById(snapshotResult.id, 'snapshot');
+                setSnapshotResult(null);
+              }}
+              className="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded border border-blue-500/30 transition-colors font-bold"
+            >
+              查看
+            </button>
+            <button onClick={() => setSnapshotResult(null)} className="text-gray-500 hover:text-gray-300">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <MergeModal 
         isOpen={isMergeModalOpen}
