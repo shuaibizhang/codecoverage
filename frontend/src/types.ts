@@ -2,6 +2,7 @@ export interface MetaInfo {
   module: string;
   branch: string;
   commit: string;
+  base_commit: string;
   total_files: number;
   last_update: string;
 }
@@ -55,6 +56,41 @@ export interface ReportSelector {
 export interface ReportSource {
   report_id?: string;
   selector?: ReportSelector;
+}
+
+export interface PullRequest {
+  id: number;
+  title: string;
+  branch: string;
+  base_branch: string;
+  author: string;
+  html_url: string;
+  created_at: string;
+}
+
+export interface Commit {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
+export interface ListPullRequestsResponse {
+  pull_requests: PullRequest[];
+}
+
+export interface ListCommitsResponse {
+  commits: Commit[];
+}
+
+export interface RebaseReportRequest {
+  report_id: string;
+  base_commit: string;
+}
+
+export interface RebaseReportResponse {
+  success: boolean;
+  message: string;
 }
 
 export interface MergeReportsRequest {

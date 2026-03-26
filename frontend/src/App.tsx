@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { CoverageTree } from './CoverageTree';
 import { SourceView } from './SourceView';
 import { MergeModal } from './MergeModal';
-import { Layout, ShieldCheck, Database, Activity, Search, RefreshCw, Layers, ChevronDown, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, GitMerge, Camera, CheckCircle2, X } from 'lucide-react';
-import { getReportInfo, getFileCoverage, getMetadataList, getRootCoverage, searchNodes, createSnapshot, getReportInfoById } from './api';
-import { NodeType, type ReportInfo, type TreeNode, type FileCoverage } from './types';
+import { Layout, ShieldCheck, Database, Search, RefreshCw, Layers, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, GitMerge, Camera, CheckCircle2, X, GitCommit, Clock } from 'lucide-react';
+import { getReportInfo, getFileCoverage, getMetadataList, getRootCoverage, searchNodes, createSnapshot, getReportInfoById, listCommits, rebaseReport } from './api';
+import { NodeType, type ReportInfo, type TreeNode, type FileCoverage, type Commit } from './types';
 
 const TEST_TYPES = [
   { id: 'unittest', label: '单元测试', icon: ShieldCheck },
@@ -18,6 +18,12 @@ function App() {
   const [module, setModule] = useState("");
   const [branch, setBranch] = useState("");
   const [commit, setCommit] = useState("");
+  
+  const [baseCommit, setBaseCommit] = useState("");
+  const [isModifyingBase, setIsModifyingBase] = useState(false);
+  const [commitsForBranch, setCommitsForBranch] = useState<Commit[]>([]);
+  const [isRebasing, setIsRebasing] = useState(false);
+  const [rebaseSuccess, setRebaseSuccess] = useState<string | null>(null);
 
   const [metadata, setMetadata] = useState<{ modules: string[], branches: string[], commits: string[] }>({
     modules: [],
@@ -42,21 +48,6 @@ function App() {
   const [searchChildrenMap, setSearchChildrenMap] = useState<Map<string, TreeNode[]> | undefined>(undefined);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 搜索防抖
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery) {
-        performSearch(searchQuery);
-      } else {
-        setMatchedPaths(undefined);
-        setAncestorPaths(undefined);
-        setSearchChildrenMap(undefined);
-      }
-    }, 300); // 300ms 防抖
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, isIncrement]);
-
   const [snapshotResult, setSnapshotResult] = useState<{ id: string, message: string } | null>(null);
 
   const performSearch = useCallback(async (query: string) => {
@@ -64,7 +55,7 @@ function App() {
 
     setIsSearching(true);
     try {
-      const results = await searchNodes(reportInfo.report_id, query, isIncrement);
+      const results = await searchNodes(reportInfo.report_id, query, isIncrement, baseCommit);
 
       const matched = new Set<string>();
       const ancestors = new Set<string>();
@@ -108,7 +99,38 @@ function App() {
     } finally {
       setIsSearching(false);
     }
-  }, [isIncrement, reportInfo, rootNode]);
+  }, [isIncrement, reportInfo, rootNode, baseCommit]);
+
+  // 搜索防抖
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) {
+        performSearch(searchQuery);
+      } else {
+        setMatchedPaths(undefined);
+        setAncestorPaths(undefined);
+        setSearchChildrenMap(undefined);
+      }
+    }, 300); // 300ms 防抖
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, isIncrement, baseCommit, performSearch]);
+
+  // 当开启修改 baseCommit 模式时，加载当前分支的提交列表
+  useEffect(() => {
+    if (isModifyingBase && module && branch) {
+      const fetchCommits = async () => {
+        try {
+          const commits = await listCommits(module, branch);
+          setCommitsForBranch(commits);
+        } catch (err) {
+          console.error("Failed to fetch commits for branch:", err);
+          setError("获取分支提交列表失败");
+        }
+      };
+      fetchCommits();
+    }
+  }, [isModifyingBase, module, branch]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -203,13 +225,35 @@ function App() {
     return () => { active = false; };
   }, [testType, module, branch]);
 
+  // 4. 当进入修改模式时，获取当前分支的所有提交列表
+  useEffect(() => {
+    if (!module || !branch || !isModifyingBase) {
+      setCommitsForBranch([]);
+      return;
+    }
+
+    const fetchCommitsForBranch = async () => {
+      try {
+        setLoading(true);
+        const commits = await listCommits(module, branch);
+        setCommitsForBranch(commits);
+      } catch (err) {
+        console.error("Failed to fetch commits for branch:", err);
+        setError("获取提交列表失败");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCommitsForBranch();
+  }, [module, branch, isModifyingBase]);
+
   const handleNodeClick = useCallback(async (node: TreeNode) => {
     setSelectedNode(node);
     if (node.type === NodeType.File) {
       setSelectedPath(node.path);
       try {
         setLoading(true);
-        const data = await getFileCoverage(reportInfo?.report_id || "", node.path);
+        const data = await getFileCoverage(reportInfo?.report_id || "", node.path, baseCommit);
         setFileData(data);
       } catch {
         setError("获取文件详情失败");
@@ -220,16 +264,32 @@ function App() {
       setSelectedPath(null);
       setFileData(null);
     }
-  }, [reportInfo?.report_id]);
+  }, [reportInfo?.report_id, baseCommit]);
 
-  const selectedNodeRef = React.useRef(selectedNode);
-  const selectedPathRef = React.useRef(selectedPath);
+  const selectedNodeRef = useRef(selectedNode);
+  const selectedPathRef = useRef(selectedPath);
   selectedNodeRef.current = selectedNode;
   selectedPathRef.current = selectedPath;
 
-  const fetchReportRef = React.useRef<string>("");
+  // 当开启修改 baseCommit 时，加载当前分支的历史提交
+  useEffect(() => {
+    const fetchCommits = async () => {
+      if (isModifyingBase && module && branch) {
+        try {
+          const commits = await listCommits(module, branch);
+          setCommitsForBranch(commits);
+        } catch (err) {
+          console.error("Failed to fetch commits:", err);
+          setError("获取分支提交历史失败");
+        }
+      }
+    };
+    fetchCommits();
+  }, [isModifyingBase, module, branch]);
+
+  const fetchReportRef = useRef<string>("");
   const fetchReport = useCallback(async () => {
-    const reportKey = `${testType}-${module}-${branch}-${commit}`;
+    const reportKey = `${testType}-${module}-${branch}-${commit}-${baseCommit}-${isIncrement}`;
     if (reportKey === fetchReportRef.current) return;
     if (!module || !branch || !commit) return;
 
@@ -240,13 +300,13 @@ function App() {
       const info = await getReportInfo(testType, module, branch, commit);
       setReportInfo(info);
 
-      const root = await getRootCoverage(info.report_id);
+      const root = await getRootCoverage(info.report_id, baseCommit);
       if (root) {
         setRootNode(root);
-        if (!selectedNodeRef.current || (selectedPathRef.current && !selectedPathRef.current.startsWith(root.path))) {
-          setSelectedNode(root);
-          setSelectedPath(root.path);
-        }
+        // 只要刷新报告、切换 Tab 或切换增量/全量视图，都重置选中的节点为根节点，展示根节点的覆盖率概览数据
+        setSelectedNode(root);
+        setSelectedPath(null);
+        setFileData(null);
       } else {
         setRootNode(null);
         setSelectedNode(null);
@@ -260,23 +320,52 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [testType, module, branch, commit]);
+  }, [testType, module, branch, commit, baseCommit, isIncrement]);
 
   useEffect(() => {
     if (module && branch && commit) {
       fetchReport();
     }
-  }, [module, branch, commit, fetchReport]);
+  }, [module, branch, commit, baseCommit, isIncrement, fetchReport]);
+
+  const handleRebase = async () => {
+    if (!reportInfo || !baseCommit) return;
+    if (!window.confirm("确定要重写报告吗？这将会根据当前的 baseCommit 重新计算并保存增量覆盖率数据。")) return;
+
+    try {
+      setIsRebasing(true);
+      setLoading(true);
+      const res = await rebaseReport(reportInfo.report_id, baseCommit);
+      if (res.success) {
+        setRebaseSuccess("报告增量数据重写成功！已更新当前报告。");
+        setIsModifyingBase(false);
+        setBaseCommit("");
+        // 强制刷新
+        fetchReportRef.current = "";
+        fetchReport();
+        
+        // 3秒后自动清除成功提示
+        setTimeout(() => setRebaseSuccess(null), 5000);
+      } else {
+        setError(`重写报告失败: ${res.message}`);
+      }
+    } catch (err) {
+      setError(`重写报告出错: ${err instanceof Error ? err.message : '未知错误'}`);
+    } finally {
+      setIsRebasing(false);
+      setLoading(false);
+    }
+  };
 
   const StatItem = ({ label, value, subLabel, colorClass = "text-gray-300", large = false }: { label: string, value: string, subLabel?: string, colorClass?: string, large?: boolean }) => (
     <div 
-      className={`flex flex-col border-r border-gray-800/50 px-5 last:border-r-0 ${large ? 'min-w-[140px]' : 'min-w-[90px]'} group/stat`}
+      className={`flex flex-col border-r border-gray-800 px-6 last:border-r-0 ${large ? 'min-w-[140px]' : 'min-w-[90px]'}`}
       title={`${label}: ${value}${subLabel ? ` (${subLabel})` : ''}`}
     >
-      <div className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-1.5 font-black group-hover/stat:text-gray-400 transition-colors">{label}</div>
-      <div className="flex items-baseline space-x-2">
-        <span className={`${large ? 'text-3xl' : 'text-xl'} font-black font-mono tracking-tighter ${colorClass} drop-shadow-sm`}>{value}</span>
-        {subLabel && <span className="text-[10px] text-gray-500 font-bold font-mono opacity-80">{subLabel}</span>}
+      <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 font-bold">{label}</div>
+      <div className="flex flex-col">
+        <span className={`${large ? 'text-2xl' : 'text-xl'} font-bold font-mono ${colorClass}`}>{value}</span>
+        {subLabel && <span className="text-[11px] text-gray-500 font-mono mt-0.5">{subLabel}</span>}
       </div>
     </div>
   );
@@ -302,7 +391,8 @@ function App() {
       if (root) {
         setRootNode(root);
         setSelectedNode(root);
-        setSelectedPath(root.path);
+        setSelectedPath(null);
+        setFileData(null);
       } else {
         setError("未找到该报告的树节点数据。");
       }
@@ -335,24 +425,22 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#0d1117] text-gray-200 overflow-hidden">
-      <header className="flex items-center h-12 px-5 border-b border-gray-800 bg-[#0d1117] shrink-0 justify-between z-10">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2.5 group cursor-default">
-            <div className="bg-green-600/20 p-1.5 rounded-lg border border-green-600/30 group-hover:bg-green-600/30 transition-all">
-              <ShieldCheck className="text-green-500" size={18} />
-            </div>
-            <h1 className="text-[13px] font-black tracking-widest hidden md:block uppercase text-gray-100">代码覆盖率 <span className="text-green-500">分析系统</span></h1>
+      <header className="flex items-center h-14 px-6 border-b border-gray-800 bg-[#0d1117] shrink-0 justify-between z-10">
+        <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-3 cursor-default">
+            <ShieldCheck className="text-green-500" size={20} />
+            <h1 className="text-sm font-bold tracking-tight text-gray-100 uppercase">代码覆盖率 <span className="text-gray-500 font-normal">系统</span></h1>
           </div>
 
-          <div className="flex space-x-1 bg-[#161b22] p-1 rounded-lg border border-gray-800 shadow-inner">
+          <div className="flex bg-[#161b22] rounded-md p-1 border border-gray-800">
             {TEST_TYPES.map(type => (
               <button
                 key={type.id}
                 onClick={() => setTestType(type.id)}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-md transition-all text-xs font-bold ${
+                className={`flex items-center space-x-2 px-4 py-1.5 rounded-md transition-all text-xs font-medium ${
                   testType === type.id 
-                  ? "bg-green-600 text-white shadow-lg transform scale-[1.02]" 
-                  : "text-gray-500 hover:text-gray-300 hover:bg-gray-800"
+                  ? "bg-green-600 text-white shadow-sm" 
+                  : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
                 }`}
               >
                 <type.icon size={14} />
@@ -362,223 +450,313 @@ function App() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center bg-[#161b22] border border-gray-700/50 rounded-lg px-2.5 py-1.5 relative hover:border-gray-600 transition-colors group">
-              <span className="text-[9px] text-gray-500 mr-2 uppercase font-black group-hover:text-gray-400">模块</span>
-              <select 
-                className="bg-transparent border-none outline-none text-xs w-32 text-gray-300 appearance-none pr-5 font-bold cursor-pointer" 
-                value={module} onChange={e => setModule(e.target.value)}
-              >
-                {metadata.modules.map(m => <option key={m} value={m} className="bg-[#161b22]">{m}</option>)}
-              </select>
-              <ChevronDown size={10} className="absolute right-2.5 text-gray-500 pointer-events-none group-hover:text-gray-400" />
-            </div>
-            <div className="flex items-center bg-[#161b22] border border-gray-700/50 rounded-lg px-2.5 py-1.5 relative hover:border-gray-600 transition-colors group">
-              <span className="text-[9px] text-gray-500 mr-2 uppercase font-black group-hover:text-gray-400">分支</span>
-              <select 
-                className="bg-transparent border-none outline-none text-xs w-20 text-gray-300 appearance-none pr-5 font-bold cursor-pointer" 
-                value={branch} onChange={e => setBranch(e.target.value)}
-              >
-                {metadata.branches.map(b => <option key={b} value={b} className="bg-[#161b22]">{b}</option>)}
-              </select>
-              <ChevronDown size={10} className="absolute right-2.5 text-gray-500 pointer-events-none group-hover:text-gray-400" />
-            </div>
-            <div className="flex items-center bg-[#161b22] border border-gray-700/50 rounded-lg px-2.5 py-1.5 relative hover:border-gray-600 transition-colors group">
-              <span className="text-[9px] text-gray-500 mr-2 uppercase font-black group-hover:text-gray-400">提交</span>
-              <select 
-                className="bg-transparent border-none outline-none text-xs w-20 text-gray-300 appearance-none pr-5 font-bold cursor-pointer" 
-                value={commit} onChange={e => setCommit(e.target.value)}
-              >
-                {metadata.commits.map(c => <option key={c} value={c} className="bg-[#161b22]">{c}</option>)}
-              </select>
-              <ChevronDown size={10} className="absolute right-2.5 text-gray-500 pointer-events-none group-hover:text-gray-400" />
-            </div>
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1 bg-[#161b22] border border-gray-800 rounded-md px-1 py-1">
+            {[
+              { label: '模块', value: module, onChange: setModule, options: metadata.modules, width: 'w-36' },
+              { label: '分支', value: branch, onChange: setBranch, options: metadata.branches, width: 'w-24' },
+              { label: '提交', value: commit, onChange: setCommit, options: metadata.commits, width: 'w-24' }
+            ].map((item, idx) => (
+              <div key={item.label} className={`flex items-center px-2 py-1 ${idx !== 2 ? 'border-r border-gray-800' : ''}`}>
+                <span className="text-[10px] text-gray-500 mr-2 uppercase font-bold">{item.label}</span>
+                <select 
+                  className={`bg-transparent border-none outline-none text-xs ${item.width} text-gray-300 font-medium cursor-pointer appearance-none pr-4`} 
+                  value={item.value} 
+                  onChange={e => item.onChange(e.target.value)}
+                >
+                  {item.options.map(o => <option key={o} value={o} className="bg-[#161b22]">{o}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center space-x-1">
             <button 
-              onClick={fetchReport}
-              className="bg-[#161b22] border border-gray-700/50 hover:bg-green-600 hover:border-green-500 text-gray-400 hover:text-white p-2 rounded-lg transition-all shadow-md active:scale-95"
+              onClick={() => {
+                fetchReportRef.current = "";
+                fetchReport();
+              }}
+              className="p-2.5 text-gray-400 hover:text-green-500 hover:bg-green-500/10 rounded-md transition-all"
               title="刷新数据"
             >
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
             </button>
+            
             <button 
               onClick={() => setIsMergeModalOpen(true)}
               disabled={!module || !branch || !commit}
-              className={`bg-[#161b22] border border-gray-700/50 p-2 rounded-lg transition-all shadow-md active:scale-95 flex items-center space-x-2 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-tight transition-all ${
                 !module || !branch || !commit 
-                ? 'opacity-50 cursor-not-allowed' 
-                : 'hover:bg-blue-600 hover:border-blue-500 text-gray-400 hover:text-white'
+                ? 'opacity-30 cursor-not-allowed text-gray-500' 
+                : 'text-blue-400 hover:bg-blue-500/10'
               }`}
-              title="合并报告"
             >
-              <GitMerge size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">合并报告</span>
+              <GitMerge size={16} />
+              <span className="hidden lg:block">合并</span>
             </button>
+
             <button 
               onClick={handleCreateSnapshot}
               disabled={!reportInfo}
-              className={`bg-[#161b22] border border-gray-700/50 p-2 rounded-lg transition-all shadow-md active:scale-95 flex items-center space-x-2 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-tight transition-all ${
                 !reportInfo 
-                ? 'opacity-50 cursor-not-allowed' 
-                : 'hover:bg-blue-600 hover:border-blue-500 text-gray-400 hover:text-white'
+                ? 'opacity-30 cursor-not-allowed text-gray-500' 
+                : 'text-purple-400 hover:bg-purple-500/10'
               }`}
-              title="生成覆盖率快照"
             >
-              <Camera size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">生成快照</span>
+              <Camera size={16} />
+              <span className="hidden lg:block">快照</span>
             </button>
           </div>
         </div>
       </header>
 
-      {error && (
-        <div className="mx-5 mt-2 bg-red-900/20 border border-red-500/30 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center space-x-3">
-            <X className="text-red-500" size={18} />
-            <p className="text-xs font-bold text-red-500">{error}</p>
-          </div>
-          <button onClick={() => setError(null)} className="text-gray-500 hover:text-gray-300">
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {/* 主体内容 */}
+      <div className="flex-grow flex flex-col min-h-0 overflow-hidden relative">
+        {/* 顶部报告状态 & 实时增量配置 */}
+        {!isMaximized && (
+          <div className="bg-[#161b22] border-b border-gray-800 shrink-0">
+            {/* 上部：报告元数据与 BaseCommit 配置 */}
+            <div className="px-6 py-3 flex items-center justify-between border-b border-gray-800 bg-[#0d1117]/50">
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-3 bg-[#161b22] px-3 py-1.5 rounded-md border border-gray-800">
+                  <GitCommit size={14} className="text-gray-500" />
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">基准版本</span>
+                    <span className="text-xs font-mono font-bold text-gray-300" title={reportInfo?.meta.base_commit}>
+                      {reportInfo?.meta.base_commit ? reportInfo.meta.base_commit.substring(0, 7) : "未设置"}
+                    </span>
+                  </div>
+                  
+                  {!isModifyingBase ? (
+                    reportInfo && (
+                      <button
+                        onClick={() => setIsModifyingBase(true)}
+                        className="ml-2 text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-tight"
+                      >
+                        修改
+                      </button>
+                    )
+                  ) : (
+                    <div className="flex items-center ml-2 pl-2 border-l border-gray-800 space-x-2">
+                      <select 
+                        className="bg-transparent border-none outline-none text-xs text-gray-200 font-mono font-bold cursor-pointer pr-4" 
+                        value={baseCommit} 
+                        onChange={e => {
+                          setBaseCommit(e.target.value);
+                          setIsIncrement(true);
+                        }}
+                      >
+                        <option value="" className="bg-[#161b22]">-- 选择提交 --</option>
+                        {commitsForBranch.map(c => (
+                          <option key={c.sha} value={c.sha} className="bg-[#161b22]">
+                            {c.sha.substring(0, 7)} - {c.message.substring(0, 30)}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          setIsModifyingBase(false);
+                          setBaseCommit("");
+                        }}
+                        className="text-gray-500 hover:text-red-400"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-      {snapshotResult && (
-        <div className="mx-5 mt-2 bg-green-900/20 border border-green-500/30 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center space-x-3">
-            <CheckCircle2 className="text-green-500" size={18} />
-            <div>
-              <p className="text-xs font-bold text-green-500">{snapshotResult.message}</p>
-              <p className="text-[10px] text-gray-400 font-mono mt-0.5">PartitionKey: {snapshotResult.id}</p>
+                {baseCommit && baseCommit !== reportInfo?.meta.base_commit && (
+                  <div className="flex items-center space-x-3 animate-in fade-in slide-in-from-left-2">
+                    <div className="flex items-center px-2 py-1 bg-orange-500/10 text-orange-500 rounded text-[10px] font-bold uppercase tracking-tight border border-orange-500/20">
+                      预览模式
+                    </div>
+                    <button
+                      onClick={handleRebase}
+                      disabled={isRebasing}
+                      className="px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded text-[10px] font-bold uppercase tracking-tight transition-colors disabled:opacity-50"
+                    >
+                      {isRebasing ? '正在重写...' : '确认重写报告'}
+                    </button>
+                  </div>
+                )}
+
+                <div className="h-4 w-px bg-gray-800 mx-2"></div>
+
+                <div className="flex items-center space-x-2 text-[10px] text-gray-500 font-bold uppercase tracking-tight">
+                  <Clock size={12} />
+                  <span>最后更新: {reportInfo?.meta.last_update || "-"}</span>
+                </div>
+              </div>
+
+              <div className="flex bg-[#161b22] p-1 rounded-md border border-gray-800">
+                <button
+                  onClick={() => setIsIncrement(false)}
+                  className={`px-4 py-1 rounded text-[10px] font-bold transition-all ${
+                    !isIncrement ? "bg-gray-700 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  全量
+                </button>
+                <button
+                  onClick={() => setIsIncrement(true)}
+                  className={`px-4 py-1 rounded text-[10px] font-bold transition-all ${
+                    isIncrement ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  增量
+                </button>
+              </div>
+            </div>
+
+            {/* 下部：核心统计指标 */}
+            <div className="px-6 py-5 flex items-center justify-between min-h-[100px]">
+              {loading && baseCommit && baseCommit !== reportInfo?.meta.base_commit ? (
+                <div className="flex-grow flex items-center justify-center space-x-4 animate-pulse">
+                  <RefreshCw size={24} className="text-blue-500 animate-spin" />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-black text-blue-400 uppercase tracking-[0.2em]">正在计算实时增量数据...</span>
+                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">对比基准: {baseCommit.substring(0, 7)}</span>
+                  </div>
+                </div>
+              ) : displayNode ? (
+                <div className="flex items-center flex-grow">
+                  <div className="flex flex-col pr-8 mr-8 border-r border-gray-800/50 shrink-0 min-w-[200px]">
+                    <div className="text-[9px] text-gray-500 uppercase font-black mb-1 tracking-[0.15em] flex items-center opacity-70">
+                      <Layers size={10} className="mr-1.5" />
+                      {displayNode.name === "root" ? "统计范围" : "当前选中节点"}
+                    </div>
+                    <div className={`text-xl font-black truncate max-w-[280px] tracking-tight ${isIncrement ? 'text-blue-400' : 'text-green-500'}`} title={displayNode.path}>
+                      {displayNode.name === "root" ? "root" : displayNode.name}
+                    </div>
+                    <div className="text-[9px] text-gray-500 mt-1.5 font-mono truncate max-w-[280px] bg-[#0d1117] px-2 py-0.5 rounded border border-gray-800/50 w-fit">{displayNode.path}</div>
+                  </div>
+
+                  <div className="flex items-center flex-grow overflow-x-auto no-scrollbar space-x-2">
+                    <StatItem 
+                      label="全量覆盖率" 
+                      value={`${displayNode.stat.coverage}%`} 
+                      subLabel={`${displayNode.stat.cover_lines} / ${displayNode.stat.instr_lines}`}
+                      colorClass="text-green-500"
+                      large={!isIncrement}
+                    />
+                    <StatItem 
+                      label="增量覆盖率" 
+                      value={`${displayNode.stat.incr_coverage}%`} 
+                      subLabel={`${displayNode.stat.incr_cover_lines} / ${displayNode.stat.incr_instr_lines}`}
+                      colorClass="text-blue-400"
+                      large={isIncrement}
+                    />
+                    
+                    <div className="w-px h-10 bg-gray-800 mx-6 opacity-50"></div>
+                    
+                    <div className="grid grid-cols-4 gap-x-4 gap-y-1">
+                      <StatItem label="总行数" value={displayNode.stat.total_lines.toLocaleString()} />
+                      <StatItem label="指令行" value={displayNode.stat.instr_lines.toLocaleString()} />
+                      <StatItem label="增量指令" value={displayNode.stat.incr_instr_lines.toLocaleString()} />
+                      <StatItem 
+                        label="代码变更" 
+                        value={`+${displayNode.stat.add_lines}`} 
+                        subLabel={`-${displayNode.stat.delete_lines}`}
+                        colorClass="text-yellow-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-16 w-full flex items-center justify-center text-gray-500 space-x-3">
+                  <RefreshCw size={20} className="animate-spin opacity-30" />
+                  <span className="text-sm font-black tracking-[0.3em] uppercase italic opacity-30">报告数据分析中...</span>
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={() => {
-                navigator.clipboard.writeText(snapshotResult.id);
-                setSnapshotResult(prev => prev ? { ...prev, message: "ID已复制到剪贴板！" } : null);
-              }}
-              className="text-[10px] bg-green-600/20 hover:bg-green-600/40 text-green-400 px-2 py-1 rounded border border-green-500/30 transition-colors font-bold"
-            >
-              复制 ID
-            </button>
-            <button 
-              onClick={() => {
-                setTestType('snapshot'); // 跳转到快照覆盖率 tab
-                loadReportById(snapshotResult.id, 'snapshot');
-                setSnapshotResult(null);
-              }}
-              className="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded border border-blue-500/30 transition-colors font-bold"
-            >
-              查看
-            </button>
-            <button onClick={() => setSnapshotResult(null)} className="text-gray-500 hover:text-gray-300">
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+        )}
 
-      <MergeModal 
-        isOpen={isMergeModalOpen}
-        onClose={() => setIsMergeModalOpen(false)}
-        baseReport={{ module, branch, commit, type: testType }}
-        testTypes={TEST_TYPES}
-        onMergeSuccess={() => {
-          fetchReport();
-        }}
-      />
+        {/* 错误提示和快照结果展示保持不变，但移动到概览面板下方 */}
+        <div className="flex flex-col">
+          {error && (
+            <div className="mx-5 mt-2 bg-red-900/20 border border-red-500/30 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center space-x-3">
+                <X className="text-red-500" size={18} />
+                <p className="text-xs font-bold text-red-500">{error}</p>
+              </div>
+              <button onClick={() => setError(null)} className="text-gray-500 hover:text-gray-300">
+                <X size={16} />
+              </button>
+            </div>
+          )}
 
-      {/* 覆盖率概览通栏 - 大尺寸展示 */}
-      {!isMaximized && (
-        <div className="bg-[#161b22] border-b border-gray-800 px-6 py-5 shrink-0 shadow-2xl relative overflow-hidden flex items-center justify-between">
-          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-            <Activity size={140} />
-          </div>
-          
-          {displayNode ? (
-            <>
-              <div className="flex items-center flex-grow">
-                <div className="flex flex-col pr-8 mr-8 border-r border-gray-700/50 shrink-0 min-w-[220px]">
-                  <div className="text-[10px] text-gray-500 uppercase font-black mb-1.5 tracking-widest flex items-center">
-                    <Layers size={10} className="mr-1.5" />
-                    {displayNode.name === "root" ? "统计范围" : "当前选中节点"}
-                  </div>
-                  <div className={`text-xl font-black truncate max-w-[300px] tracking-tight ${isIncrement ? 'text-blue-400' : 'text-green-500'}`} title={displayNode.path}>
-                    {displayNode.name === "root" ? "root" : displayNode.name}
-                  </div>
-                  <div className="text-[10px] text-gray-500 mt-1.5 font-mono truncate max-w-[300px] bg-[#0d1117] px-2 py-0.5 rounded border border-gray-800 w-fit">{displayNode.path}</div>
-                </div>
+          {rebaseSuccess && (
+            <div className="mx-5 mt-2 bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center space-x-3">
+                <CheckCircle2 className="text-blue-500" size={18} />
+                <p className="text-xs font-bold text-blue-400">{rebaseSuccess}</p>
+              </div>
+              <button onClick={() => setRebaseSuccess(null)} className="text-gray-500 hover:text-gray-300">
+                <X size={16} />
+              </button>
+            </div>
+          )}
 
-                <div className="flex items-center flex-grow overflow-x-auto no-scrollbar space-x-2">
-                  <StatItem 
-                    label="全量覆盖率" 
-                    value={`${displayNode.stat.coverage}%`} 
-                    subLabel={`${displayNode.stat.cover_lines} / ${displayNode.stat.instr_lines}`}
-                    colorClass="text-green-500"
-                    large={true}
-                  />
-                  <StatItem 
-                    label="增量覆盖率" 
-                    value={`${displayNode.stat.incr_coverage}%`} 
-                    subLabel={`${displayNode.stat.incr_cover_lines} / ${displayNode.stat.incr_instr_lines}`}
-                    colorClass="text-blue-400"
-                    large={true}
-                  />
-                  
-                  <div className="w-px h-12 bg-gray-800 mx-6"></div>
-                  
-                  <div className="grid grid-cols-4 gap-x-2 gap-y-1">
-                    <StatItem label="总行数" value={displayNode.stat.total_lines.toLocaleString()} />
-                    <StatItem label="指令行" value={displayNode.stat.instr_lines.toLocaleString()} />
-                    <StatItem label="增量指令" value={displayNode.stat.incr_instr_lines.toLocaleString()} />
-                    <StatItem 
-                      label="代码变更" 
-                      value={`+${displayNode.stat.add_lines}`} 
-                      subLabel={`-${displayNode.stat.delete_lines}`}
-                      colorClass="text-yellow-500"
-                    />
-                  </div>
+          {snapshotResult && (
+            <div className="mx-5 mt-2 bg-green-900/20 border border-green-500/30 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center space-x-3">
+                <CheckCircle2 className="text-green-500" size={18} />
+                <div>
+                  <p className="text-xs font-bold text-green-500">{snapshotResult.message}</p>
+                  <p className="text-[10px] text-gray-400 font-mono mt-0.5">PartitionKey: {snapshotResult.id}</p>
                 </div>
               </div>
-
-              {/* 视图切换按钮搬迁至此 */}
-              <div className="flex flex-col space-y-3 pl-8 ml-8 border-l border-gray-700/50 shrink-0">
-                <div className="flex bg-[#0d1117] p-1 rounded-lg border border-gray-800 shadow-inner">
-                  <button
-                    onClick={() => setIsIncrement(false)}
-                    className={`px-4 py-1.5 text-xs font-black rounded-md transition-all ${
-                      !isIncrement 
-                      ? "bg-gray-700 text-white shadow-lg" 
-                      : "text-gray-500 hover:text-gray-300"
-                    }`}
-                  >
-                    全量
-                  </button>
-                  <button
-                    onClick={() => setIsIncrement(true)}
-                    className={`px-4 py-1.5 text-xs font-black rounded-md transition-all ${
-                      isIncrement 
-                      ? "bg-blue-600 text-white shadow-lg" 
-                      : "text-gray-500 hover:text-gray-300"
-                    }`}
-                  >
-                    增量
-                  </button>
-                </div>
-                <div className="text-[9px] text-gray-500 text-center uppercase font-black tracking-widest">视图模式切换</div>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(snapshotResult.id);
+                    setSnapshotResult(prev => prev ? { ...prev, message: "ID已复制到剪贴板！" } : null);
+                  }}
+                  className="text-[10px] bg-green-600/20 hover:bg-green-600/40 text-green-400 px-2 py-1 rounded border border-green-500/30 transition-colors font-bold"
+                >
+                  复制 ID
+                </button>
+                <button 
+                  onClick={() => {
+                    setTestType('snapshot'); // 跳转到快照覆盖率 tab
+                    loadReportById(snapshotResult.id, 'snapshot');
+                    setSnapshotResult(null);
+                  }}
+                  className="text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-2 py-1 rounded border border-blue-500/30 transition-colors font-bold"
+                >
+                  查看
+                </button>
+                <button onClick={() => setSnapshotResult(null)} className="text-gray-500 hover:text-gray-300">
+                  <X size={16} />
+                </button>
               </div>
-            </>
-          ) : (
-            <div className="h-16 w-full flex items-center justify-center text-gray-500 space-x-3">
-              <RefreshCw size={24} className="animate-spin opacity-30" />
-              <span className="text-base font-black tracking-[0.3em] uppercase italic opacity-30">报告数据分析中...</span>
             </div>
           )}
         </div>
-      )}
 
-      <main className="flex flex-grow overflow-hidden bg-[#0d1117]">
+        <MergeModal 
+          isOpen={isMergeModalOpen}
+          onClose={() => setIsMergeModalOpen(false)}
+          baseReport={{ module, branch, commit, type: testType }}
+          testTypes={TEST_TYPES}
+          onMergeSuccess={() => {
+            fetchReport();
+          }}
+        />
+
+      <main className="flex flex-grow overflow-hidden bg-[#0d1117] relative">
+        {loading && baseCommit && baseCommit !== reportInfo?.meta.base_commit && (
+          <div className="absolute inset-0 z-50 bg-[#0d1117]/80 flex flex-col items-center justify-center space-y-4">
+            <RefreshCw size={32} className="text-blue-500 animate-spin" />
+            <div className="flex flex-col items-center">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">正在重新计算增量覆盖率</h3>
+              <p className="text-[10px] text-gray-500 font-mono mt-1">Comparing with {baseCommit.substring(0, 7)}...</p>
+            </div>
+          </div>
+        )}
         {isSidebarOpen && !isMaximized && (
           <aside className="w-[340px] shrink-0 h-full flex flex-col border-r border-gray-800 bg-[#0d1117] z-10 transition-all duration-300">
             {/* 搜索框 */}
@@ -598,17 +776,18 @@ function App() {
               </div>
             </div>
 
-            <CoverageTree
-                rootNode={rootNode}
-                onNodeClick={handleNodeClick}
-                selectedPath={selectedPath}
-                reportId={reportInfo?.report_id || ""}
-                isIncrement={isIncrement}
-                searchQuery={searchQuery}
-                matchedPaths={matchedPaths}
-                ancestorPaths={ancestorPaths}
-                searchChildrenMap={searchChildrenMap}
-              />
+            <CoverageTree 
+                  rootNode={rootNode} 
+                  onNodeClick={handleNodeClick}
+                  selectedPath={selectedPath}
+                  reportId={reportInfo?.report_id || ""}
+                  isIncrement={isIncrement}
+                  baseCommit={baseCommit}
+                  searchQuery={searchQuery}
+                  matchedPaths={matchedPaths}
+                  ancestorPaths={ancestorPaths}
+                  searchChildrenMap={searchChildrenMap}
+                />
           </aside>
         )}
 
@@ -666,7 +845,8 @@ function App() {
         </section>
       </main>
     </div>
-  );
+  </div>
+);
 }
 
 export default App;

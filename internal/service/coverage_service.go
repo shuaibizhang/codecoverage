@@ -29,6 +29,9 @@ type CoverageService interface {
 	SearchNodes(ctx context.Context, req *coverage.SearchNodesRequest) (*coverage.SearchNodesResponse, error)
 	GetReportInfoById(ctx context.Context, req *coverage.GetReportInfoByIdRequest) (*coverage.GetReportInfoResponse, error)
 	CreateSnapshot(ctx context.Context, req *coverage.CreateSnapshotRequest) (*coverage.CreateSnapshotResponse, error)
+	RebaseReport(ctx context.Context, req *coverage.RebaseReportRequest) (*coverage.RebaseReportResponse, error)
+	ListPullRequests(ctx context.Context, req *coverage.ListPullRequestsRequest) (*coverage.ListPullRequestsResponse, error)
+	ListCommits(ctx context.Context, req *coverage.ListCommitsRequest) (*coverage.ListCommitsResponse, error)
 }
 
 type coverageService struct {
@@ -149,7 +152,8 @@ func (s *coverageService) GetReportInfo(ctx context.Context, req *coverage.GetRe
 			Module:     module,
 			Branch:     branch,
 			Commit:     commit,
-			TotalFiles: uint32(meta.TotalFiles),
+			BaseCommit: meta.BaseCommit,
+			TotalFiles: meta.TotalFiles,
 			LastUpdate: meta.LastUpdate,
 		},
 	}, nil
@@ -166,6 +170,25 @@ func (s *coverageService) GetTreeNodes(ctx context.Context, req *coverage.GetTre
 		return nil, status.Errorf(codes.NotFound, "report not found")
 	}
 	defer rep.Close(ctx)
+
+	// 如果提供了 BaseCommit，实时重计算统计数据（仅在内存中，不持久化）
+	if req.BaseCommit != "" {
+		meta := rep.GetMeta()
+		module := meta.Module
+		if module == "" {
+			module = pk.GetModule()
+		}
+		commit := meta.Commit
+		if commit == "" {
+			commit = pk.GetCommit()
+		}
+
+		diffMap, err := s.diffSvc.GetDiff(ctx, module, "", commit, req.BaseCommit)
+		if err == nil {
+			// 在内存中应用新的 diff
+			_ = s.mgr.RebaseReport(ctx, meta, rep, diffMap.DiffFileMap)
+		}
+	}
 
 	node := rep.FindNode(req.Path)
 	if node == nil {
@@ -256,6 +279,28 @@ func (s *coverageService) GetFileCoverage(ctx context.Context, req *coverage.Get
 	lines, err := rep.GetFileCoverLines(req.Path)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get lines: %v", err)
+	}
+
+	// 如果提供了 BaseCommit，实时计算增量行标识
+	if req.BaseCommit != "" {
+		diffMap, err := s.diffSvc.GetDiff(ctx, module, "", commit, req.BaseCommit)
+		if err == nil {
+			if diffFile := diffMap.GetDiffFile(req.Path); diffFile != nil {
+				changeLines := diffFile.GetFileChangeLines()
+				changeLinesMap := make(map[int]bool)
+				for _, l := range changeLines {
+					changeLinesMap[l] = true
+				}
+
+				// 为增量行添加 MaskIncrLine 标识
+				for i := range lines {
+					lineNum := i + 1
+					if changeLinesMap[lineNum] {
+						lines[i] |= 0x40000000 // MaskIncrLine
+					}
+				}
+			}
+		}
 	}
 
 	content, err := s.codeProvider.GetFileContent(ctx, module, commit, req.Path)
@@ -459,6 +504,25 @@ func (s *coverageService) GetRootCoverage(ctx context.Context, req *coverage.Get
 	}
 	defer rep.Close(ctx)
 
+	// 如果提供了 BaseCommit，实时重计算统计数据（仅在内存中，不持久化）
+	if req.BaseCommit != "" {
+		meta := rep.GetMeta()
+		module := meta.Module
+		if module == "" {
+			module = pk.GetModule()
+		}
+		commit := meta.Commit
+		if commit == "" {
+			commit = pk.GetCommit()
+		}
+
+		diffMap, err := s.diffSvc.GetDiff(ctx, module, "", commit, req.BaseCommit)
+		if err == nil {
+			// 在内存中应用新的 diff
+			_ = s.mgr.RebaseReport(ctx, meta, rep, diffMap.DiffFileMap)
+		}
+	}
+
 	node := rep.FindNode("*")
 	if node == nil {
 		node = rep.FindNode("")
@@ -500,6 +564,25 @@ func (s *coverageService) SearchNodes(ctx context.Context, req *coverage.SearchN
 		return nil, status.Errorf(codes.NotFound, "report not found")
 	}
 	defer rep.Close(ctx)
+
+	// 如果提供了 BaseCommit，实时重计算统计数据（仅在内存中，不持久化）
+	if req.BaseCommit != "" {
+		meta := rep.GetMeta()
+		module := meta.Module
+		if module == "" {
+			module = pk.GetModule()
+		}
+		commit := meta.Commit
+		if commit == "" {
+			commit = pk.GetCommit()
+		}
+
+		diffMap, err := s.diffSvc.GetDiff(ctx, module, "", commit, req.BaseCommit)
+		if err == nil {
+			// 在内存中应用新的 diff
+			_ = s.mgr.RebaseReport(ctx, meta, rep, diffMap.DiffFileMap)
+		}
+	}
 
 	start := time.Now()
 	matchedNodes, err := rep.Match(req.Keyword, req.IsIncrement)
@@ -588,11 +671,70 @@ func (s *coverageService) GetReportInfoById(ctx context.Context, req *coverage.G
 			Module:     module,
 			Branch:     branch,
 			Commit:     commit,
-			TotalFiles: uint32(meta.TotalFiles),
+			BaseCommit: meta.BaseCommit,
+			TotalFiles: meta.TotalFiles,
 			Coverage:   coverageVal,
 			LastUpdate: meta.LastUpdate,
 		},
 	}, nil
+}
+
+func (s *coverageService) ListPullRequests(ctx context.Context, req *coverage.ListPullRequestsRequest) (*coverage.ListPullRequestsResponse, error) {
+	prs, err := s.codeProvider.ListPullRequests(ctx, req.Module, req.State)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list pull requests: %v", err)
+	}
+	return &coverage.ListPullRequestsResponse{PullRequests: prs}, nil
+}
+
+func (s *coverageService) ListCommits(ctx context.Context, req *coverage.ListCommitsRequest) (*coverage.ListCommitsResponse, error) {
+	commits, err := s.codeProvider.ListCommits(ctx, req.Module, req.Branch)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list commits: %v", err)
+	}
+	return &coverage.ListCommitsResponse{Commits: commits}, nil
+}
+
+func (s *coverageService) RebaseReport(ctx context.Context, req *coverage.RebaseReportRequest) (*coverage.RebaseReportResponse, error) {
+	pk, err := partitionkey.UnmarshalPartitionKey(req.ReportId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid report_id")
+	}
+
+	rep, err := s.mgr.OpenWrite(ctx, pk)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "report not found")
+	}
+	defer rep.Close(ctx)
+
+	// 获取 diff 数据
+	meta := rep.GetMeta()
+	module := meta.Module
+	if module == "" {
+		module = pk.GetModule()
+	}
+	commit := meta.Commit
+	if commit == "" {
+		commit = pk.GetCommit()
+	}
+
+	diffMap, err := s.diffSvc.GetDiff(ctx, module, "", commit, req.BaseCommit)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get diff: %v", err)
+	}
+
+	// 更新报告的增量覆盖率
+	meta.BaseCommit = req.BaseCommit
+	if err := s.mgr.RebaseReport(ctx, meta, rep, diffMap.DiffFileMap); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to rebase report: %v", err)
+	}
+
+	// 固化报告
+	if err := rep.Flush(ctx); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to flush report: %v", err)
+	}
+
+	return &coverage.RebaseReportResponse{Success: true, Message: "Report rebased and flushed successfully"}, nil
 }
 
 func (s *coverageService) CreateSnapshot(ctx context.Context, req *coverage.CreateSnapshotRequest) (*coverage.CreateSnapshotResponse, error) {

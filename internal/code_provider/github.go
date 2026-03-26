@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v60/github"
+	"github.com/shuaibizhang/codecoverage/idl/cover-server/coverage"
 	githubCli "github.com/shuaibizhang/codecoverage/internal/github"
 )
 
@@ -25,25 +26,7 @@ func NewGithubCodeProvider(client githubCli.Client, owner string) CodeProvider {
 
 func (p *githubCodeProvider) GetFileContent(ctx context.Context, repo, commit, path string) (string, error) {
 	// 1. 尝试从仓库路径中解析 owner 和 repo 名称
-	// repo 可能的形式: "github.com/shuaibizhang/codecoverage" 或 "shuaibizhang/transparent-context"
-	repoName := repo
-	ownerName := p.owner
-
-	if strings.Contains(repo, "/") {
-		parts := strings.Split(repo, "/")
-		// 情况1: github.com/owner/repo
-		if len(parts) >= 3 && parts[0] == "github.com" {
-			ownerName = parts[1]
-			repoName = parts[2]
-		} else if len(parts) == 2 {
-			// 情况2: owner/repo
-			ownerName = parts[0]
-			repoName = parts[1]
-		} else {
-			// 其他情况: 取最后一段作为 repo 名
-			repoName = parts[len(parts)-1]
-		}
-	}
+	ownerName, repoName := p.parseRepo(repo)
 
 	// 2. 处理 commit/ref
 	// - 清理末尾的冒号
@@ -92,4 +75,72 @@ func (p *githubCodeProvider) GetFileContent(ctx context.Context, repo, commit, p
 	}
 
 	return "", fmt.Errorf("unable to get content for file: %s", path)
+}
+
+func (p *githubCodeProvider) ListPullRequests(ctx context.Context, repo string, state string) ([]*coverage.PullRequest, error) {
+	ownerName, repoName := p.parseRepo(repo)
+	opts := &github.PullRequestListOptions{
+		State: state,
+	}
+
+	prs, _, err := p.client.ListPullRequests(ctx, ownerName, repoName, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pull requests from github: %w", err)
+	}
+
+	res := make([]*coverage.PullRequest, 0, len(prs))
+	for _, pr := range prs {
+		res = append(res, &coverage.PullRequest{
+			Id:         int32(pr.GetNumber()),
+			Title:      pr.GetTitle(),
+			Branch:     pr.GetHead().GetRef(),
+			BaseBranch: pr.GetBase().GetRef(),
+			Author:     pr.GetUser().GetLogin(),
+			HtmlUrl:    pr.GetHTMLURL(),
+			CreatedAt:  pr.GetCreatedAt().String(),
+		})
+	}
+	return res, nil
+}
+
+func (p *githubCodeProvider) ListCommits(ctx context.Context, repo, branch string) ([]*coverage.Commit, error) {
+	ownerName, repoName := p.parseRepo(repo)
+	opts := &github.CommitsListOptions{
+		SHA: branch,
+	}
+
+	commits, _, err := p.client.ListCommits(ctx, ownerName, repoName, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list commits from github: %w", err)
+	}
+
+	res := make([]*coverage.Commit, 0, len(commits))
+	for _, c := range commits {
+		res = append(res, &coverage.Commit{
+			Sha:     c.GetSHA(),
+			Message: c.GetCommit().GetMessage(),
+			Author:  c.GetCommit().GetAuthor().GetName(),
+			Date:    c.GetCommit().GetAuthor().GetDate().String(),
+		})
+	}
+	return res, nil
+}
+
+func (p *githubCodeProvider) parseRepo(repo string) (string, string) {
+	repoName := repo
+	ownerName := p.owner
+
+	if strings.Contains(repo, "/") {
+		parts := strings.Split(repo, "/")
+		if len(parts) >= 3 && parts[0] == "github.com" {
+			ownerName = parts[1]
+			repoName = parts[2]
+		} else if len(parts) == 2 {
+			ownerName = parts[0]
+			repoName = parts[1]
+		} else {
+			repoName = parts[len(parts)-1]
+		}
+	}
+	return ownerName, repoName
 }

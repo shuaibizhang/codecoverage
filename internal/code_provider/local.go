@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/shuaibizhang/codecoverage/idl/cover-server/coverage"
 )
 
 type localCodeProvider struct {
@@ -59,4 +61,12 @@ func (p *localCodeProvider) GetFileContent(ctx context.Context, repo, commit, pa
 	}
 
 	return "", fmt.Errorf("file not found: %s (rootDir=%s, fullPath=%s)", path, p.rootDir, fullPath)
+}
+
+func (p *localCodeProvider) ListPullRequests(ctx context.Context, repo string, state string) ([]*coverage.PullRequest, error) {
+	return nil, fmt.Errorf("ListPullRequests not supported for local code provider")
+}
+
+func (p *localCodeProvider) ListCommits(ctx context.Context, repo, branch string) ([]*coverage.Commit, error) {
+	return nil, fmt.Errorf("ListCommits not supported for local code provider")
 }

@@ -16,6 +16,7 @@ interface TreeItemProps {
   selectedPath: string | null;
   reportId: string;
   isIncrement: boolean;
+  baseCommit?: string;
   searchQuery: string;
   matchedPaths?: Set<string>;
   ancestorPaths?: Set<string>;
@@ -30,6 +31,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
   selectedPath, 
   reportId, 
   isIncrement, 
+  baseCommit,
   searchQuery, 
   matchedPaths, 
   ancestorPaths, 
@@ -63,7 +65,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
   // 这能解决“闪烁”以及“旧数据残留”问题
   useEffect(() => {
     setChildren(node.children && node.children.length > 0 ? node.children : null);
-  }, [node.path, node.children]);
+  }, [node.path, node.children, baseCommit]);
 
   // 计算当前应该显示的子节点，避免通过 useEffect 异步设置 state 导致的闪烁
   const displayChildren = useMemo(() => {
@@ -84,7 +86,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
     loadingRef.current = true;
     setLoading(true);
     try {
-      const fetchedChildren = await getTreeNodes(reportId, node.path, isIncrement);
+      const fetchedChildren = await getTreeNodes(reportId, node.path, isIncrement, baseCommit);
       setChildren(fetchedChildren || []);
     } catch (err) {
       console.error("Failed to fetch children:", err);
@@ -93,7 +95,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [reportId, node.path, isIncrement]);
+  }, [reportId, node.path, isIncrement, baseCommit]);
 
   // 当搜索状态改变时，如果是祖先节点，则自动展开
   useEffect(() => {
@@ -198,6 +200,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
                 selectedPath={selectedPath}
                 reportId={reportId}
                 isIncrement={isIncrement}
+                baseCommit={baseCommit}
                 searchQuery={searchQuery}
                 matchedPaths={matchedPaths}
                 ancestorPaths={ancestorPaths}
@@ -218,6 +221,7 @@ interface CoverageTreeProps {
   selectedPath: string | null;
   reportId: string;
   isIncrement: boolean;
+  baseCommit?: string;
   searchQuery: string;
   matchedPaths?: Set<string>;
   ancestorPaths?: Set<string>;
@@ -230,6 +234,7 @@ export const CoverageTree: React.FC<CoverageTreeProps> = React.memo(({
   selectedPath, 
   reportId, 
   isIncrement,
+  baseCommit,
   searchQuery,
   matchedPaths,
   ancestorPaths,
@@ -257,6 +262,7 @@ export const CoverageTree: React.FC<CoverageTreeProps> = React.memo(({
           selectedPath={selectedPath}
           reportId={reportId}
           isIncrement={isIncrement}
+          baseCommit={baseCommit}
           searchQuery={searchQuery}
           matchedPaths={matchedPaths}
           ancestorPaths={ancestorPaths}

@@ -30,6 +30,9 @@ const (
 	CoverageService_GetRootCoverage_FullMethodName        = "/api.v1.coverage.CoverageService/GetRootCoverage"
 	CoverageService_SearchNodes_FullMethodName            = "/api.v1.coverage.CoverageService/SearchNodes"
 	CoverageService_CreateSnapshot_FullMethodName         = "/api.v1.coverage.CoverageService/CreateSnapshot"
+	CoverageService_RebaseReport_FullMethodName           = "/api.v1.coverage.CoverageService/RebaseReport"
+	CoverageService_ListPullRequests_FullMethodName       = "/api.v1.coverage.CoverageService/ListPullRequests"
+	CoverageService_ListCommits_FullMethodName            = "/api.v1.coverage.CoverageService/ListCommits"
 )
 
 // CoverageServiceClient is the client API for CoverageService service.
@@ -60,6 +63,12 @@ type CoverageServiceClient interface {
 	SearchNodes(ctx context.Context, in *SearchNodesRequest, opts ...grpc.CallOption) (*SearchNodesResponse, error)
 	// 创建覆盖率快照（固化当前报告）
 	CreateSnapshot(ctx context.Context, in *CreateSnapshotRequest, opts ...grpc.CallOption) (*CreateSnapshotResponse, error)
+	// 重新计算报告增量覆盖率（手动固化）
+	RebaseReport(ctx context.Context, in *RebaseReportRequest, opts ...grpc.CallOption) (*RebaseReportResponse, error)
+	// 获取 Pull Request 列表
+	ListPullRequests(ctx context.Context, in *ListPullRequestsRequest, opts ...grpc.CallOption) (*ListPullRequestsResponse, error)
+	// 获取 Commit 列表
+	ListCommits(ctx context.Context, in *ListCommitsRequest, opts ...grpc.CallOption) (*ListCommitsResponse, error)
 }
 
 type coverageServiceClient struct {
@@ -180,6 +189,36 @@ func (c *coverageServiceClient) CreateSnapshot(ctx context.Context, in *CreateSn
 	return out, nil
 }
 
+func (c *coverageServiceClient) RebaseReport(ctx context.Context, in *RebaseReportRequest, opts ...grpc.CallOption) (*RebaseReportResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RebaseReportResponse)
+	err := c.cc.Invoke(ctx, CoverageService_RebaseReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coverageServiceClient) ListPullRequests(ctx context.Context, in *ListPullRequestsRequest, opts ...grpc.CallOption) (*ListPullRequestsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPullRequestsResponse)
+	err := c.cc.Invoke(ctx, CoverageService_ListPullRequests_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *coverageServiceClient) ListCommits(ctx context.Context, in *ListCommitsRequest, opts ...grpc.CallOption) (*ListCommitsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListCommitsResponse)
+	err := c.cc.Invoke(ctx, CoverageService_ListCommits_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CoverageServiceServer is the server API for CoverageService service.
 // All implementations must embed UnimplementedCoverageServiceServer
 // for forward compatibility.
@@ -208,6 +247,12 @@ type CoverageServiceServer interface {
 	SearchNodes(context.Context, *SearchNodesRequest) (*SearchNodesResponse, error)
 	// 创建覆盖率快照（固化当前报告）
 	CreateSnapshot(context.Context, *CreateSnapshotRequest) (*CreateSnapshotResponse, error)
+	// 重新计算报告增量覆盖率（手动固化）
+	RebaseReport(context.Context, *RebaseReportRequest) (*RebaseReportResponse, error)
+	// 获取 Pull Request 列表
+	ListPullRequests(context.Context, *ListPullRequestsRequest) (*ListPullRequestsResponse, error)
+	// 获取 Commit 列表
+	ListCommits(context.Context, *ListCommitsRequest) (*ListCommitsResponse, error)
 	mustEmbedUnimplementedCoverageServiceServer()
 }
 
@@ -250,6 +295,15 @@ func (UnimplementedCoverageServiceServer) SearchNodes(context.Context, *SearchNo
 }
 func (UnimplementedCoverageServiceServer) CreateSnapshot(context.Context, *CreateSnapshotRequest) (*CreateSnapshotResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateSnapshot not implemented")
+}
+func (UnimplementedCoverageServiceServer) RebaseReport(context.Context, *RebaseReportRequest) (*RebaseReportResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RebaseReport not implemented")
+}
+func (UnimplementedCoverageServiceServer) ListPullRequests(context.Context, *ListPullRequestsRequest) (*ListPullRequestsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListPullRequests not implemented")
+}
+func (UnimplementedCoverageServiceServer) ListCommits(context.Context, *ListCommitsRequest) (*ListCommitsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCommits not implemented")
 }
 func (UnimplementedCoverageServiceServer) mustEmbedUnimplementedCoverageServiceServer() {}
 func (UnimplementedCoverageServiceServer) testEmbeddedByValue()                         {}
@@ -470,6 +524,60 @@ func _CoverageService_CreateSnapshot_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CoverageService_RebaseReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RebaseReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).RebaseReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_RebaseReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).RebaseReport(ctx, req.(*RebaseReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoverageService_ListPullRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPullRequestsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).ListPullRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_ListPullRequests_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).ListPullRequests(ctx, req.(*ListPullRequestsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CoverageService_ListCommits_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCommitsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoverageServiceServer).ListCommits(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoverageService_ListCommits_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoverageServiceServer).ListCommits(ctx, req.(*ListCommitsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CoverageService_ServiceDesc is the grpc.ServiceDesc for CoverageService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -520,6 +628,18 @@ var CoverageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateSnapshot",
 			Handler:    _CoverageService_CreateSnapshot_Handler,
+		},
+		{
+			MethodName: "RebaseReport",
+			Handler:    _CoverageService_RebaseReport_Handler,
+		},
+		{
+			MethodName: "ListPullRequests",
+			Handler:    _CoverageService_ListPullRequests_Handler,
+		},
+		{
+			MethodName: "ListCommits",
+			Handler:    _CoverageService_ListCommits_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

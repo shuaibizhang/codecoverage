@@ -55,6 +55,18 @@ func (c *CoverageController) CreateSnapshot(ctx context.Context, req *coverage.C
 	return c.svc.CreateSnapshot(ctx, req)
 }
 
+func (c *CoverageController) RebaseReport(ctx context.Context, req *coverage.RebaseReportRequest) (*coverage.RebaseReportResponse, error) {
+	return c.svc.RebaseReport(ctx, req)
+}
+
+func (c *CoverageController) ListPullRequests(ctx context.Context, req *coverage.ListPullRequestsRequest) (*coverage.ListPullRequestsResponse, error) {
+	return c.svc.ListPullRequests(ctx, req)
+}
+
+func (c *CoverageController) ListCommits(ctx context.Context, req *coverage.ListCommitsRequest) (*coverage.ListCommitsResponse, error) {
+	return c.svc.ListCommits(ctx, req)
+}
+
 // Controller 是总控制器，实现了 coverage.CoverageServiceServer 接口
 // 它通过组合各个子控制器来完成所有 RPC 方法的实现
 type Controller struct {
@@ -109,6 +121,18 @@ func (c *Controller) GetReportInfoById(ctx context.Context, req *coverage.GetRep
 
 func (c *Controller) CreateSnapshot(ctx context.Context, req *coverage.CreateSnapshotRequest) (*coverage.CreateSnapshotResponse, error) {
 	return c.CoverageController.CreateSnapshot(ctx, req)
+}
+
+func (c *Controller) RebaseReport(ctx context.Context, req *coverage.RebaseReportRequest) (*coverage.RebaseReportResponse, error) {
+	return c.CoverageController.RebaseReport(ctx, req)
+}
+
+func (c *Controller) ListPullRequests(ctx context.Context, req *coverage.ListPullRequestsRequest) (*coverage.ListPullRequestsResponse, error) {
+	return c.CoverageController.ListPullRequests(ctx, req)
+}
+
+func (c *Controller) ListCommits(ctx context.Context, req *coverage.ListCommitsRequest) (*coverage.ListCommitsResponse, error) {
+	return c.CoverageController.ListCommits(ctx, req)
 }
 
 func (c *Controller) UploadUnittestReport(ctx context.Context, req *coverage.UploadUnittestReportRequest) (*coverage.UploadUnittestReportResponse, error) {

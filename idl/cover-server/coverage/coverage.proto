@@ -35,7 +35,8 @@ service CoverageService {
   // 获取指定测试类型的元数据列表 (Module, Branch, Commit)
   rpc GetMetadataList(GetMetadataListRequest) returns (GetMetadataListResponse) {
     option (google.api.http) = {
-      get: "/api/v1/coverage/metadata"
+      post: "/api/v1/coverage/metadata"
+      body: "*"
     };
   }
 
@@ -94,6 +95,75 @@ service CoverageService {
       body: "*"
     };
   }
+
+  // 重新计算报告增量覆盖率（手动固化）
+  rpc RebaseReport(RebaseReportRequest) returns (RebaseReportResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/coverage/rebase"
+      body: "*"
+    };
+  }
+
+  // 获取 Pull Request 列表
+  rpc ListPullRequests(ListPullRequestsRequest) returns (ListPullRequestsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/git/pulls"
+      body: "*"
+    };
+  }
+
+  // 获取 Commit 列表
+  rpc ListCommits(ListCommitsRequest) returns (ListCommitsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/git/commits"
+      body: "*"
+    };
+  }
+}
+
+message ListPullRequestsRequest {
+  string module = 1;
+  string state = 2; // "open", "closed", "all"
+}
+
+message PullRequest {
+  int32 id = 1;
+  string title = 2;
+  string branch = 3;
+  string base_branch = 4;
+  string author = 5;
+  string html_url = 6;
+  string created_at = 7;
+}
+
+message ListPullRequestsResponse {
+  repeated PullRequest pull_requests = 1;
+}
+
+message ListCommitsRequest {
+  string module = 1;
+  string branch = 2;
+}
+
+message Commit {
+  string sha = 1;
+  string message = 2;
+  string author = 3;
+  string date = 4;
+}
+
+message ListCommitsResponse {
+  repeated Commit commits = 1;
+}
+
+message RebaseReportRequest {
+  string report_id = 1;
+  string base_commit = 2;
+}
+
+message RebaseReportResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message CreateSnapshotRequest {
@@ -202,9 +272,10 @@ message MetaInfo {
   string module = 1;
   string branch = 2;
   string commit = 3;
-  uint32 total_files = 4;
-  uint32 coverage = 5;
-  string last_update = 6;
+  string base_commit = 4;
+  uint32 total_files = 5;
+  uint32 coverage = 6;
+  string last_update = 7;
 }
 
 message GetReportInfoResponse {
@@ -220,6 +291,7 @@ message GetTreeNodesRequest {
   string report_id = 1;
   string path = 2; // 目录路径，根目录传 ""
   bool is_increment = 3; // 是否查看增量
+  string base_commit = 4; // 实时预览基准 Commit
 }
 
 message TreeNodeStat {
@@ -249,6 +321,7 @@ message GetTreeNodesResponse {
 message GetFileCoverageRequest {
   string report_id = 1;
   string path = 2;
+  string base_commit = 3; // 实时预览基准 Commit
 }
 
 message GetFileCoverageResponse {
@@ -260,6 +333,7 @@ message GetFileCoverageResponse {
 
 message GetRootCoverageRequest {
   string report_id = 1;
+  string base_commit = 2; // 实时预览基准 Commit
 }
 
 message GetRootCoverageResponse {
@@ -270,6 +344,7 @@ message SearchNodesRequest {
   string report_id = 1;
   string keyword = 2; // 模糊匹配关键字
   bool is_increment = 3; // 是否只搜索有增量的节点
+  string base_commit = 4; // 实时预览基准 Commit
 }
 
 message SearchNodesResponse {
